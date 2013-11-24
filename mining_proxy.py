@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 '''
     Stratum mining proxy
     Copyright (C) 2012 Marek Palatinus <info@bitcoin.cz>
@@ -21,6 +21,23 @@ import argparse
 import time
 import os
 import socket
+from twisted.internet import reactor, defer
+from stratum.socket_transport import SocketTransportFactory, SocketTransportClientFactory
+from stratum.services import ServiceEventHandler
+from twisted.web.server import Site
+
+from mining_libs import stratum_listener
+from mining_libs import getwork_listener
+from mining_libs import client_service
+from mining_libs import jobs
+from mining_libs import worker_registry
+from mining_libs import multicast_responder
+from mining_libs import version
+from mining_libs import utils
+from mining_libs.connection_pool import ConnectionPool
+
+import stratum.logger
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='This proxy allows you to run getwork-based miners against Stratum mining pool.')
@@ -60,21 +77,6 @@ if __name__ == '__main__':
         settings.DEBUG = True
         settings.LOGLEVEL = 'DEBUG'
             
-from twisted.internet import reactor, defer
-from stratum.socket_transport import SocketTransportFactory, SocketTransportClientFactory
-from stratum.services import ServiceEventHandler
-from twisted.web.server import Site
-
-from mining_libs import stratum_listener
-from mining_libs import getwork_listener
-from mining_libs import client_service
-from mining_libs import jobs
-from mining_libs import worker_registry
-from mining_libs import multicast_responder
-from mining_libs import version
-from mining_libs import utils
-
-import stratum.logger
 log = stratum.logger.get_logger('proxy')
 
 def on_shutdown(f):
@@ -206,11 +208,20 @@ def main(args):
 
     log.warning("Trying to connect to Stratum pool at %s:%d" % (args.host, args.port))        
         
+    cp = ConnectionPool();
     # Connect to Stratum pool
-    f = SocketTransportClientFactory(args.host, args.port,
-                debug=args.verbose, proxy=proxy,
-                event_handler=client_service.ClientMiningService)
+    #f = SocketTransportClientFactory(args.host, args.port,
+    #            debug=args.verbose, proxy=proxy,
+    #            event_handler=client_service.ClientMiningService)
     
+    f = cp.getConnection(
+            'default', 
+            host=args.host,
+            port=args.port,
+            debug=args.verbose,
+            proxy=proxy,
+            event_handler=client_service.ClientMiningService
+            )
     
     job_registry = jobs.JobRegistry(f, cmd=args.blocknotify_cmd,
                    no_midstate=args.no_midstate, real_target=args.real_target, use_old_target=args.old_target)

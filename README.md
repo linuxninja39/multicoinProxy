@@ -1,4 +1,4 @@
-stratum-mining-proxy
+multicoinProxy
 ====================
 
 Application providing bridge between old HTTP/getwork protocol and Stratum mining protocol
