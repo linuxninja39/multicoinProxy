@@ -223,8 +223,13 @@ def main(args):
             event_handler=client_service.ClientMiningService
             )
     
-    job_registry = jobs.JobRegistry(f, cmd=args.blocknotify_cmd,
-                   no_midstate=args.no_midstate, real_target=args.real_target, use_old_target=args.old_target)
+    job_registry = jobs.JobRegistry(
+            f,
+            cmd=args.blocknotify_cmd,
+            no_midstate=args.no_midstate,
+            real_target=args.real_target,
+            use_old_target=args.old_target
+            )
     client_service.ClientMiningService.job_registry = job_registry
     client_service.ClientMiningService.reset_timeout()
     
