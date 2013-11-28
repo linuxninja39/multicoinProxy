@@ -20,4 +20,3 @@ mining_libs/version.pyc
 mining_libs/worker_registry.pyc
 mining_proxy.pyc
 stratum_mining_proxy.egg-info/
-test.py
