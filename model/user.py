@@ -11,9 +11,5 @@ class User(Base):
     email = Column(String(250))
     password = Column(String(250))
 
-    def __init__(self, email=None, password=None):
-        self.email = email
-        self.password = password
-
     def __repr__(self):
-        return "<%s('%s','%s')>" % (self.__tablename__, self.email, self.password)
+        return "<%s('%s', '%s', '%s')>" % (self.__tablename__, self.id, self.email, self.password)

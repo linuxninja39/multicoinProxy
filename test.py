@@ -8,36 +8,41 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from model.user import User
-from model.coin import Coin
-from model.user_coin import UserCoin
-import pprint
+from config.db import Session
+from model.tables import Tables
 
-Base = declarative_base()
-Session = sessionmaker()
+import sys
+import pprint
 
 def main():
 
-	engine = create_engine('mysql+mysqldb://root@localhost/MultiPool', echo=True)
+	session = Session()
+	user = Tables['User']()
+	user.username = 'linuxninja39'
+	user.password = 'password'
 
-
-	Session.configure(bind=engine)
-	session = Session();
+	User = Tables['User']
+	Worker = Tables['Worker']
+	Coin = Tables['Coin']
+	Host = Tables['Host']
+	Service = Tables['Service']
 	
-	user = User('bob@bob.com1', 'password')
-	
-	fUser = session\
-			.query(User)\
-			.filter_by(email=user.email)\
-			.first();
+	res = session\
+		.query(User.username, Worker.name, Coin.name, Host.name, Service.port)\
+		.join(Worker)\
+		.join(Tables['WorkerCoin'])\
+		.join(Tables['Coin'])\
+		.join(Tables['CoinService'])\
+		.join(Tables['Service'])\
+		.join(Tables['Host'])\
+		.filter(User.username==user.username)\
+		.order_by(Coin.profitability.desc())\
+		.first()
 
-	print user;
+	pprint.pprint(res)
 
-	if not fUser:
-		session.add(user);
-		session.commit();
-		
-	print fUser;
+	worker = session.query(Worker).first();
+
 
 if __name__ == "__main__":
     main()

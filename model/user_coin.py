@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
 
 from model.user import User
+from model.coin import Coin
 
 Base = declarative_base()
 
