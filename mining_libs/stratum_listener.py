@@ -113,6 +113,10 @@ class StratumProxyService(GenericService):
         else:
             log.error("Given extranonce is not registered1")
         return result
+
+    @classmethod
+    def _new_switch_proxy(cls):
+        cls._f.reconnect('localhost', 50014)
             
     @defer.inlineCallbacks
     def authorize(self, worker_name, worker_password, *args):
