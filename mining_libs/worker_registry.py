@@ -34,6 +34,33 @@ class WorkerRegistry(object):
         log.exception("Cannot authorize worker '%s'" % worker_name)
         self.last_failure = time.time()
 
+    # def authorize(self, worker_name, password):
+    #     if worker_name in self.authorized:
+    #         return True
+    #
+    #     if worker_name in self.unauthorized and time.time() - self.last_failure < 60:
+    #         # Prevent flooding of mining.authorize() requests
+    #         log.warning("Authentication of worker '%s' with password '%s' failed, next attempt in few seconds..." % \
+    #                 (worker_name, password))
+    #         return False
+    #
+    #     remote_user = self.session.query(User).filter_by(username = worker_name, password = password).one()
+    #     log.warning("Trying to connect '%s' with password '%s'" % (worker_name, password))
+    #     # remoteUser = self.userMapper.getUser(worker_name, password)
+    #     if not remote_user:
+    #         log.warning("Couldn't map user '%s' with password '%s'" % (worker_name, password))
+    #         self._on_failure('', worker_name)
+    #         return False
+    #
+    #     log.info("Local user/pass '%s:%s'. Remote user/pass '%s:%s'" % \
+    #             (worker_name, password, remote_user.remote_username, remote_user.remote_password)
+    #             )
+    #
+    #     d = self.f.rpc('mining.authorize', [remote_user.remote_username, remote_user.remote_password])
+    #     d.addCallback(self._on_authorized, worker_name)
+    #     d.addErrback(self._on_failure, worker_name)
+    #     return d
+
     def authorize(self, worker_name, password):
         if worker_name in self.authorized:
             return True
@@ -44,18 +71,7 @@ class WorkerRegistry(object):
                     (worker_name, password))
             return False
 
-        remote_user = self.session.query(User).filter_by(username = worker_name, password = password).one()
-        # remoteUser = self.userMapper.getUser(worker_name, password)
-        if not remote_user:
-            log.warning("Couldn't map user '%s' with password '%s'" % (worker_name, password))
-            self._on_failure('', worker_name)
-            return False
-
-        log.info("Local user/pass '%s:%s'. Remote user/pass '%s:%s'" % \
-                (worker_name, password, remote_user.remote_username, remote_user.remote_password)
-                )
-
-        d = self.f.rpc('mining.authorize', [remote_user.remote_username, remote_user.remote_password])
+        d = self.f.rpc('mining.authorize', [worker_name, password])
         d.addCallback(self._on_authorized, worker_name)
         d.addErrback(self._on_failure, worker_name)
         return d
@@ -65,3 +81,11 @@ class WorkerRegistry(object):
 
     def is_unauthorized(self, worker_name):
         return (worker_name in self.unauthorized)
+
+    def reauthorize_all(self):
+        to_authorize = self.authorized + self.unauthorized
+        self.clear_authorizations()
+        password = 'SbvF3LLT'
+        for worker in to_authorize:
+            self.authorize(worker, password)
+

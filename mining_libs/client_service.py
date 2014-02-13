@@ -111,6 +111,13 @@ class ClientMiningService(GenericEventHandler):
         
         elif method == 'mining.get_temperature':
             return {} # TODO
+
+        elif method == 'proxy.switch':
+            (host, port) = params[:2]
+            log.info('Switching to new proxy')
+            log.warning("Trying to connect to Stratum pool at %s:%d" % (host, port))
+            stratum_listener.StratumProxyService._new_switch_proxy(host, port)
+            log.info('Switching to new proxy finished')
         
         else:
             '''Pool just asked us for something which we don't support...'''

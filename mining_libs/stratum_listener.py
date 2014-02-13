@@ -115,8 +115,8 @@ class StratumProxyService(GenericService):
         return result
 
     @classmethod
-    def _new_switch_proxy(cls):
-        cls._f.reconnect('localhost', 50014)
+    def _new_switch_proxy(cls, host, port):
+        cls._f.reconnect(host, port)
             
     @defer.inlineCallbacks
     def authorize(self, worker_name, worker_password, *args):

@@ -22,9 +22,10 @@ import time
 import os
 import socket
 from twisted.internet import reactor, defer
-from stratum.socket_transport import SocketTransportFactory, SocketTransportClientFactory
+from stratum.socket_transport import SocketTransportFactory
 from stratum.services import ServiceEventHandler
 from twisted.web.server import Site
+from mining_libs.custom_classes import CustomSocketTransportClientFactory as SocketTransportClientFactory
 
 from mining_libs import stratum_listener
 from mining_libs import getwork_listener
@@ -212,18 +213,18 @@ def main(args):
 
     cp = ConnectionPool();
     # Connect to Stratum pool
-    #f = SocketTransportClientFactory(args.host, args.port,
-    #            debug=args.verbose, proxy=proxy,
-    #            event_handler=client_service.ClientMiningService)
+    f = SocketTransportClientFactory(args.host, args.port,
+               debug=args.verbose, proxy=proxy,
+               event_handler=client_service.ClientMiningService)
 
-    f = cp.getConnection(
-            'default',
-            host=args.host,
-            port=args.port,
-            debug=args.verbose,
-            proxy=proxy,
-            event_handler=client_service.ClientMiningService
-            )
+    # f = cp.getConnection(
+    #         'default',
+    #         host=args.host,
+    #         port=args.port,
+    #         debug=args.verbose,
+    #         proxy=proxy,
+    #         event_handler=client_service.ClientMiningService
+    #         )
 
     job_registry = jobs.JobRegistry(
             f,
