@@ -167,60 +167,71 @@ def test_update():
 
     reactor.callLater(3600*24, test_update)
 
-@defer.inlineCallbacks
-def main(args):
-    if args.pid_file:
-        fp = file(args.pid_file, 'w')
-        fp.write(str(os.getpid()))
-        fp.close()
+def switch_proxy(args, first_start):
+    # if not first_start:
+    # TODO Add Getting 'the best' coin
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
+    log.info('Switch coin start')
 
-    if args.port != 3333:
-        '''User most likely provided host/port
-        for getwork interface. Let's try to detect
-        Stratum host/port of given getwork pool.'''
+    # job_registry = jobs.JobRegistry(self._f, cmd=jobs.JobRegistry.cmd, scrypt_target=jobs.JobRegistry.scrypt_target,
+    #                no_midstate=jobs.JobRegistry.no_midstate, real_target=jobs.JobRegistry.real_target, use_old_target=jobs.JobRegistry.old_target)
 
-        try:
-            new_host = (yield utils.detect_stratum(args.host, args.port))
-        except:
-            log.exception("Stratum host/port autodetection failed")
-            new_host = None
+    # job_registry = jobs.JobRegistry
+    # client_service.ClientMiningService.job_registry = job_registry
+    # client_service.ClientMiningService.reset_timeout()
+    #
+    # f = SocketTransportClientFactory('localhost', 50014,
+    #         debug=self._f.debug, proxy=self._f.proxy,
+    #         event_handler=client_service.ClientMiningService)
+    # workers = worker_registry.WorkerRegistry(f)
+    # log.info('Switch coin middle')
+    # self._f = f
+    # self._f.on_connect(workers, job_registry)
+    # log.info('-------------------------------')
+    # log.info('Reconnecting to localhost:50014')
+    # log.info('-------------------------------')
+    # self._f.reconnect('localhost', 50014, 60)
+    # reactor.listenMulticast(3333, multicast_responder.MulticastResponder(('localhost', 50014), 3333, 8332), listenMultiple=True)
 
-        if new_host != None:
-            args.host = new_host[0]
-            args.port = new_host[1]
 
-    log.warning("Stratum proxy version: %s" % version.VERSION)
-    # Setup periodic checks for a new version
-    test_update()
-
-    if args.tor:
-        log.warning("Configuring Tor connection")
-        args.proxy = '127.0.0.1:9050'
-        args.host = 'pool57wkuu5yuhzb.onion'
-        args.port = 3333
-
-    if args.proxy:
-        proxy = args.proxy.split(':')
-        if len(proxy) < 2:
-            proxy = (proxy, 9050)
-        else:
-            proxy = (proxy[0], int(proxy[1]))
-        log.warning("Using proxy %s:%d" % proxy)
-    else:
-        proxy = None
+    # Setup multicast responder
+    args.host = '127.0.0.1'
+    args.port = 50014
+    args.stratum_host = '0.0.0.0'
+    args.stratum_port = 3333
+    args.getwork_host = '0.0.0.0'
+    args.getwork_port = 8332
 
     log.warning("Trying to connect to Stratum pool at %s:%d" % (args.host, args.port))
-
-    cp = ConnectionPool();
-    # Connect to Stratum pool
     f = SocketTransportClientFactory(args.host, args.port,
-               debug=args.verbose, proxy=proxy,
+               debug=args.verbose, proxy=args.proxy,
                event_handler=client_service.ClientMiningService)
 
     # f = cp.getConnection(
     #         'default',
     #         host=args.host,
     #         port=args.port,
+    #         debug=args.verbose,
+    #         proxy=proxy,
+    #         event_handler=client_service.ClientMiningService
+    #         )
+    # f1 = cp.getConnection(
+    #         'additional',
+    #         host='127.0.0.1',
+    #         port='50014',
     #         debug=args.verbose,
     #         proxy=proxy,
     #         event_handler=client_service.ClientMiningService
@@ -280,6 +291,139 @@ def main(args):
         log.warning("LISTENING FOR MINERS ON http://%s:%d (getwork) and stratum+tcp://%s:%d (stratum)" % \
                  (args.getwork_host, args.getwork_port, args.stratum_host, args.stratum_port))
     log.warning("-----------------------------------------------------------------------")
+    reactor.callLater(600, switch_proxy(args, False))
+    # else:
+    #     reactor.callLater(60, switch_proxy(args, False))
+
+
+@defer.inlineCallbacks
+def main(args):
+    if args.pid_file:
+        fp = file(args.pid_file, 'w')
+        fp.write(str(os.getpid()))
+        fp.close()
+
+    if args.port != 3333:
+        '''User most likely provided host/port
+        for getwork interface. Let's try to detect
+        Stratum host/port of given getwork pool.'''
+
+        try:
+            new_host = (yield utils.detect_stratum(args.host, args.port))
+        except:
+            log.exception("Stratum host/port autodetection failed")
+            new_host = None
+
+        if new_host != None:
+            args.host = new_host[0]
+            args.port = new_host[1]
+
+    log.warning("Stratum proxy version: %s" % version.VERSION)
+    # Setup periodic checks for a new version
+    test_update()
+
+    if args.tor:
+        log.warning("Configuring Tor connection")
+        args.proxy = '127.0.0.1:9050'
+        args.host = 'pool57wkuu5yuhzb.onion'
+        args.port = 3333
+
+    if args.proxy:
+        proxy = args.proxy.split(':')
+        if len(proxy) < 2:
+            proxy = (proxy, 9050)
+        else:
+            proxy = (proxy[0], int(proxy[1]))
+        log.warning("Using proxy %s:%d" % proxy)
+    else:
+        proxy = None
+
+    log.warning("Trying to connect to Stratum pool at %s:%d" % (args.host, args.port))
+
+    # cp = ConnectionPool();
+    # Connect to Stratum pool
+    f = SocketTransportClientFactory(args.host, args.port,
+               debug=args.verbose, proxy=proxy,
+               event_handler=client_service.ClientMiningService)
+
+    # f = cp.getConnection(
+    #         'default',
+    #         host=args.host,
+    #         port=args.port,
+    #         debug=args.verbose,
+    #         proxy=proxy,
+    #         event_handler=client_service.ClientMiningService
+    #         )
+    # f1 = cp.getConnection(
+    #         'additional',
+    #         host='127.0.0.1',
+    #         port='50014',
+    #         debug=args.verbose,
+    #         proxy=proxy,
+    #         event_handler=client_service.ClientMiningService
+    #         )
+
+    job_registry = jobs.JobRegistry(
+            f,
+            cmd=args.blocknotify_cmd,
+            no_midstate=args.no_midstate,
+            real_target=args.real_target,
+            use_old_target=args.old_target
+            )
+    client_service.ClientMiningService.job_registry = job_registry
+    client_service.ClientMiningService.reset_timeout()
+
+    workers = worker_registry.WorkerRegistry(f)
+    f.on_connect.addCallback(on_connect, workers, job_registry)
+    f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
+
+    if args.test:
+        f.on_connect.addCallback(test_launcher, job_registry)
+
+    # Cleanup properly on shutdown
+    reactor.addSystemEventTrigger('before', 'shutdown', on_shutdown, f)
+
+    # Block until proxy connect to the pool
+    yield f.on_connect
+
+    # Setup getwork listener
+    if args.getwork_port > 0:
+        conn = reactor.listenTCP(args.getwork_port, Site(getwork_listener.Root(job_registry, workers,
+                                                    stratum_host=args.stratum_host, stratum_port=args.stratum_port,
+                                                    custom_lp=args.custom_lp, custom_stratum=args.custom_stratum,
+                                                    custom_user=args.custom_user, custom_password=args.custom_password)),
+                                                    interface=args.getwork_host)
+
+        try:
+            conn.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1) # Enable keepalive packets
+            conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 60) # Seconds before sending keepalive probes
+            conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, 1) # Interval in seconds between keepalive probes
+            conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, 5) # Failed keepalive probles before declaring other end dead
+        except:
+            pass # Some socket features are not available on all platforms (you can guess which one)
+
+    # Setup stratum listener
+    if args.stratum_port > 0:
+        stratum_listener.StratumProxyService._set_upstream_factory(f)
+        reactor.listenTCP(args.stratum_port, SocketTransportFactory(debug=False, event_handler=ServiceEventHandler))
+
+    # Setup multicast responder
+    reactor.listenMulticast(3333, multicast_responder.MulticastResponder((args.host, args.port), args.stratum_port, args.getwork_port), listenMultiple=True)
+
+    log.warning("-----------------------------------------------------------------------")
+    if args.getwork_host == '0.0.0.0' and args.stratum_host == '0.0.0.0':
+        log.warning("PROXY IS LISTENING ON ALL IPs ON PORT %d (stratum) AND %d (getwork)" % (args.stratum_port, args.getwork_port))
+    else:
+        log.warning("LISTENING FOR MINERS ON http://%s:%d (getwork) and stratum+tcp://%s:%d (stratum)" % \
+                 (args.getwork_host, args.getwork_port, args.stratum_host, args.stratum_port))
+    log.warning("-----------------------------------------------------------------------")
+    log.warning("Switching Proxy Here")
+    log.warning("Switching Proxy Here")
+    log.warning("Switching Proxy Here")
+    log.warning("Switching Proxy Here")
+    log.warning("Switching Proxy Here")
+    log.warning("Switching Proxy Here")
+    switch_proxy(args, True)
 
 if __name__ == '__main__':
     main(args)
