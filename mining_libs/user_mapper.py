@@ -1,11 +1,11 @@
 
 class UserMapper():
 	_userMap = {
-			'linuxninja39': {
-				'password': 'x',
-				'remoteUser': 'linuxninja39.aTester',
-				'remotePassword': 'x'
-				}
+			# 'linuxninja39': {
+			# 	'password': 'x',
+			# 	'remoteUser': 'linuxninja39.aTester',
+			# 	'remotePassword': 'x'
+			# 	}
 			}
 	def getUser(self, user, pw):
 		if self._userMap[user]:

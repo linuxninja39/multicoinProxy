@@ -7,6 +7,23 @@ from stratum.services import GenericService
 from stratum.pubsub import Pubsub, Subscription
 from stratum.custom_exceptions import ServiceException, RemoteServiceException
 
+#new import
+from twisted.internet import reactor, defer
+from stratum.socket_transport import SocketTransportFactory
+from mining_libs.custom_classes import CustomSocketTransportClientFactory as SocketTransportClientFactory
+from stratum.services import ServiceEventHandler
+# from twisted.web.server import Site
+#
+# from mining_libs import stratum_listener
+# from mining_libs import getwork_listener
+from mining_libs import client_service
+from mining_libs import jobs
+from mining_libs import worker_registry
+from mining_libs import multicast_responder
+from mining_libs import version
+from mining_libs import utils
+
+#end new import
 from jobs import JobRegistry
 
 import stratum.logger
@@ -113,10 +130,6 @@ class StratumProxyService(GenericService):
         else:
             log.error("Given extranonce is not registered1")
         return result
-
-    @classmethod
-    def _new_switch_proxy(cls, host, port):
-        cls._f.reconnect(host, port)
             
     @defer.inlineCallbacks
     def authorize(self, worker_name, worker_password, *args):

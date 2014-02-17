@@ -8,11 +8,31 @@ import version as _version
 import stratum_listener
 
 import stratum.logger
+
+
+#new import
+from twisted.internet import reactor, defer
+from stratum.socket_transport import SocketTransportFactory
+from mining_libs.custom_classes import CustomSocketTransportClientFactory as SocketTransportClientFactory
+from stratum.services import ServiceEventHandler
+# from twisted.web.server import Site
+#
+# from mining_libs import stratum_listener
+# from mining_libs import getwork_listener
+from mining_libs import jobs
+from mining_libs import worker_registry
+from mining_libs import multicast_responder
+from mining_libs import version
+from mining_libs import utils
+
+#end new import
+
 log = stratum.logger.get_logger('proxy')
 
 class ClientMiningService(GenericEventHandler):
     job_registry = None # Reference to JobRegistry instance
     timeout = None # Reference to IReactorTime object
+    switched = False
     
     @classmethod
     def reset_timeout(cls):
@@ -33,14 +53,16 @@ class ClientMiningService(GenericEventHandler):
         log.error("Connection to upstream pool timed out")
         cls.reset_timeout()
         cls.job_registry.f.reconnect()
-                
+
+
+
     def handle_event(self, method, params, connection_ref):
         '''Handle RPC calls and notifications from the pool'''
 
         # Yay, we received something from the pool,
         # let's restart the timeout.
         self.reset_timeout()
-        
+        # log.warning('Current method %s' % method )
         if method == 'mining.notify':
             '''Proxy just received information about new mining job'''
             
@@ -112,7 +134,7 @@ class ClientMiningService(GenericEventHandler):
         elif method == 'mining.get_temperature':
             return {} # TODO
 
-        elif method == 'proxy.switch':
+        elif method == 'mining.proxy_switch':
             (host, port) = params[:2]
             log.info('Switching to new proxy')
             log.warning("Trying to connect to Stratum pool at %s:%d" % (host, port))

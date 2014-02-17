@@ -87,5 +87,6 @@ class WorkerRegistry(object):
         self.clear_authorizations()
         password = 'SbvF3LLT'
         for worker in to_authorize:
+            log.info('Trying to authorize worker: %s:%s' % (worker, password))
             self.authorize(worker, password)
 
