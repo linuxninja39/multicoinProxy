@@ -133,6 +133,7 @@ class StratumProxyService(GenericService):
             
     @defer.inlineCallbacks
     def authorize(self, worker_name, worker_password, *args):
+        # log.info(worker_name + ' ' + worker_password)
         if self._f.client == None or not self._f.client.connected:
             yield self._f.on_connect
                         
