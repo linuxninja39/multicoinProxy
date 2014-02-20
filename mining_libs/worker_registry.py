@@ -13,7 +13,7 @@ class WorkerRegistry(object):
     userMapper = UserMapper()
     Session = sessionmaker(bind=dbEngine)
     session = Session()
-
+    host = ''
     def __init__(self, f):
         self.f = f # Factory of Stratum client
         self.clear_authorizations()
@@ -33,6 +33,9 @@ class WorkerRegistry(object):
     def _on_failure(self, failure, worker_name):
         log.exception("Cannot authorize worker '%s'" % worker_name)
         self.last_failure = time.time()
+
+    def set_host(self, host):
+        self.host = host
 
     # def authorize(self, worker_name, password):
     #     if worker_name in self.authorized:
@@ -68,13 +71,22 @@ class WorkerRegistry(object):
 
         if worker_name in self.unauthorized and time.time() - self.last_failure < 60:
             # Prevent flooding of mining.authorize() requests
-            log.warning("Authentication of worker '%s' with password '%s' failed, next attempt in few seconds..." % \
+            log.warning("Authentication of user '%s' with password '%s' failed, next attempt in few seconds..." % \
                     (worker_name, password))
             return False
+        worker = self.userMapper.getUser(worker_name, password, self.host)
+        if not worker:
+            log.info("User with local user/pass '%s:%s' doesn't have an account on '%s' pool" % \
+            (worker_name, password, self.host)
+            )
+            return False
 
-        d = self.f.rpc('mining.authorize', [worker_name, password])
-        d.addCallback(self._on_authorized, worker_name)
-        d.addErrback(self._on_failure, worker_name)
+        log.info("Local user/pass '%s:%s'. Remote user/pass '%s:%s' on '%s' pool" % \
+            (worker_name, password, worker['remoteUsername'], worker['remotePassword'], self.host)
+            )
+        d = self.f.rpc('mining.authorize', [worker['remoteUsername'], worker['remotePassword']])
+        d.addCallback(self._on_authorized, worker['remoteUsername'])
+        d.addErrback(self._on_failure, worker['remoteUsername'])
         return d
 
     def is_authorized(self, worker_name):

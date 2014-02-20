@@ -27,6 +27,8 @@ from mining_libs import utils
 from jobs import JobRegistry
 
 import stratum.logger
+from mining_libs.user_mapper import UserMapper
+
 log = stratum.logger.get_logger('proxy')
 
 class UpstreamServiceException(ServiceException):
@@ -87,6 +89,7 @@ class StratumProxyService(GenericService):
     service_type = 'mining'
     service_vendor = 'mining_proxy'
     is_default = True
+    userMapper = UserMapper()
     
     _f = None # Factory of upstream Stratum connection
     extranonce1 = None
@@ -134,10 +137,21 @@ class StratumProxyService(GenericService):
     @defer.inlineCallbacks
     def authorize(self, worker_name, worker_password, *args):
         # log.info(worker_name + ' ' + worker_password)
-        if self._f.client == None or not self._f.client.connected:
+        worker = self.userMapper.getUser(worker_name, worker_password, self._f.main_host[0] + ':' + str(self._f.main_host[1]))
+        if not worker:
+            log.info("User with local user/pass '%s:%s' doesn't have an account on '%s:%d' pool" % \
+            (worker_name, worker_password, self._f.main_host[0], self._f.main_host[1])
+            )
+            defer.returnValue(False)
+
+        log.info("Local user/pass '%s:%s'. Remote user/pass '%s:%s' on '%s:%d' pool" % \
+            (worker_name, worker_password, worker['remoteUsername'], worker['remotePassword'], self._f.main_host[0], self._f.main_host[1])
+        )
+        if self._f.client is None or not self._f.client.connected:
             yield self._f.on_connect
                         
-        result = (yield self._f.rpc('mining.authorize', [worker_name, worker_password]))
+        result = (yield self._f.rpc('mining.authorize', [worker['remoteUsername'], worker['remotePassword']]))
+        log.info(result)
         defer.returnValue(result)
     
     @defer.inlineCallbacks
@@ -176,7 +190,7 @@ class StratumProxyService(GenericService):
             raise SubmitException("Connection is not subscribed")
         
         start = time.time()
-        
+        worker_name = self.userMapper.getWorkerName(worker_name, self._f.main_host[0] + ':' + str(self._f.main_host[1]))
         try:
             result = (yield self._f.rpc('mining.submit', [worker_name, job_id, tail+extranonce2, ntime, nonce]))
         except RemoteServiceException as exc:

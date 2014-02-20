@@ -42,7 +42,7 @@ import stratum.logger
 
 def parse_args():
     parser = argparse.ArgumentParser(description='This proxy allows you to run getwork-based miners against Stratum mining pool.')
-    parser.add_argument('-o', '--host', dest='host', type=str, default='stratum.bitcoin.cz', help='Hostname of Stratum mining pool')
+    parser.add_argument('-o', '--host', dest='host', type=str, default='mint.bitminter.com', help='Hostname of Stratum mining pool')
     parser.add_argument('-p', '--port', dest='port', type=int, default=3333, help='Port of Stratum mining pool')
     # parser.add_argument('-o', '--host', dest='host', type=str, default='localhost', help='Hostname of Stratum mining pool')
     # parser.add_argument('-p', '--port', dest='port', type=int, default=50013, help='Port of Stratum mining pool')
@@ -173,7 +173,7 @@ def test():
     log.warning('test')
     reactor.callLater(5, test)
 
-def switch_proxy(f, periodicity, workers, job_registry, host):
+def switch_proxy(f, periodicity, workers, job_registry, host, getwork):
     # TODO Add Getting 'the best' coin
     if host == 'mint.bitminter.com':
         host = 'stratum.bitcoin.cz'
@@ -215,10 +215,11 @@ def switch_proxy(f, periodicity, workers, job_registry, host):
     # args.getwork_port = 8332
     #
     # log.warning("Trying to connect to Stratum pool at %s:%d" % (host, port))
-    f.host = host
-    f.port = port
+    f.main_host = (host, port)
+    # f.port = port
     # f.connect()
     f.reconnect(host=host, port=port)
+    workers.set_host(host + ':' + str(port))
     # f.retry()
     # reactor.connectTCP(host, port, f)
     # log.warning(workers.authorized)
@@ -273,7 +274,7 @@ def switch_proxy(f, periodicity, workers, job_registry, host):
     #              (args.getwork_host, args.getwork_port, args.stratum_host, args.stratum_port))
     # log.warning("-----------------------------------------------------------------------")
     # '''
-    reactor.callLater(periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry, host=host, periodicity=periodicity)
+    reactor.callLater(periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry, host=host, periodicity=periodicity, getwork=getwork)
 
 @defer.inlineCallbacks
 def main(args):
@@ -356,6 +357,7 @@ def main(args):
     workers = worker_registry.WorkerRegistry(f)
     f.on_connect.addCallback(on_connect, workers, job_registry)
     f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
+    workers.set_host(args.host + ':' + str(args.port))
 
     if args.test:
         f.on_connect.addCallback(test_launcher, job_registry)
@@ -367,11 +369,14 @@ def main(args):
     yield f.on_connect
 
     # Setup getwork listener
+    getwork_lstnr = None
     if args.getwork_port > 0:
-        conn = reactor.listenTCP(args.getwork_port, Site(getwork_listener.Root(job_registry, workers,
+        getwork_lstnr = getwork_listener.Root(job_registry, workers,
                                                     stratum_host=args.stratum_host, stratum_port=args.stratum_port,
                                                     custom_lp=args.custom_lp, custom_stratum=args.custom_stratum,
-                                                    custom_user=args.custom_user, custom_password=args.custom_password)),
+                                                    custom_user=args.custom_user, custom_password=args.custom_password)
+        getwork_lstnr.set_host(args.host + ':' + str(args.port))
+        conn = reactor.listenTCP(args.getwork_port, Site(getwork_lstnr),
                                                     interface=args.getwork_host)
 
         try:
@@ -401,8 +406,7 @@ def main(args):
         log.warning("-----------------------Proxy Switching Scheduled-----------------------")
         log.warning("----------------Switch Periodicity is set to %d seconds----------------" % args.switch_periodicity)
         log.warning("-----------------------------------------------------------------------")
-        reactor.callLater(args.switch_periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry, host=args.host, periodicity=args.switch_periodicity)
-
+        reactor.callLater(args.switch_periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry, host=args.host, periodicity=args.switch_periodicity, getwork=getwork_lstnr)
 
 if __name__ == '__main__':
     main(args)
