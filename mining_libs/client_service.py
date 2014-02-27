@@ -58,7 +58,7 @@ class ClientMiningService(GenericEventHandler):
 
     def handle_event(self, method, params, connection_ref):
         '''Handle RPC calls and notifications from the pool'''
-
+        log.log(connection_ref)
         # Yay, we received something from the pool,
         # let's restart the timeout.
         self.reset_timeout()

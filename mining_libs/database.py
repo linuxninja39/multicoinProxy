@@ -8,7 +8,15 @@ preferred_pools = "'stratum.bitcoin.cz','mint.bitminter.com'"
 def get_worker(host, port, username, password = None):
 
     worker = session.execute(
-        "SELECT DISTINCT Worker.id, Worker.name, Worker.password, User.password as userpassword FROM Worker LEFT JOIN User ON Worker.userId = User.id LEFT JOIN WorkerService ON WorkerService.workerId = Worker.id LEFT JOIN Service ON Service.id = WorkerService.serviceId LEFT JOIN Host ON Service.hostId = Host.id WHERE User.username = :username AND Service.port = :port AND Host.name = :host",
+        "\
+        SELECT DISTINCT Worker.id, Worker.name, Worker.password, ProxyUser.password as userpassword FROM Worker \
+        LEFT JOIN User ON Worker.userId = User.id \
+        LEFT JOIN ProxyUser ON ProxyUser.userId = User.id \
+        LEFT JOIN WorkerService ON WorkerService.workerId = Worker.id \
+        LEFT JOIN Service ON Service.id = WorkerService.serviceId \
+        LEFT JOIN Host ON Service.hostId = Host.id \
+        WHERE ProxyUser.username = :username AND Service.port = :port AND Host.name = :host \
+        ",
         {'host' : host, 'port' : port, 'username' : username}
     ).first()
     if worker:

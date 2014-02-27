@@ -203,6 +203,24 @@ CREATE TABLE `Worker` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `ProxyUser`
+--
+
+DROP TABLE IF EXISTS `ProxyUser`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `ProxyUser` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `userId` int(10) unsigned NOT NULL,
+  `username` varchar(200) NOT NULL,
+  `password` varchar(200) NOT NULL,
+  PRIMARY KEY (`id`),
+#   UNIQUE KEY `uniqueUserWorker` (`userId`,`name`),
+  CONSTRAINT `ProxyUser_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `User` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `WorkerCoin`
 --
 
