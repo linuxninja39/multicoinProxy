@@ -6,13 +6,14 @@ from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 
 import stratum.logger
+from mining_libs import database
 from mining_libs.user_mapper import UserMapper
 
 log = stratum.logger.get_logger('proxy')
 
 class Root(Resource):
     isLeaf = True
-    host = None
+    host = port = None
     userMapper = UserMapper()
     def __init__(self, job_registry, workers, stratum_host, stratum_port,
                  custom_stratum=None, custom_lp=None, custom_user=None, custom_password=''):
@@ -169,7 +170,10 @@ class Root(Resource):
             return NOT_DONE_YET
        
         d = defer.maybeDeferred(self.workers.authorize, worker_name, password)
-        worker_name = self.userMapper.getWorkerName(worker_name, self.host)
+        worker = database.get_worker(self.host, self.port, worker_name, password)
+        worker_name = ''
+        if worker:
+            worker_name = worker['remoteUsername']
         d.addCallback(self._on_authorized, request, worker_name)
         d.addErrback(self._on_failure, request)    
         return NOT_DONE_YET

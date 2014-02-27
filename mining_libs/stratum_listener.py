@@ -22,7 +22,7 @@ from mining_libs import worker_registry
 from mining_libs import multicast_responder
 from mining_libs import version
 from mining_libs import utils
-
+from mining_libs import database
 #end new import
 from jobs import JobRegistry
 
@@ -137,7 +137,8 @@ class StratumProxyService(GenericService):
     @defer.inlineCallbacks
     def authorize(self, worker_name, worker_password, *args):
         # log.info(worker_name + ' ' + worker_password)
-        worker = self.userMapper.getUser(worker_name, worker_password, self._f.main_host[0] + ':' + str(self._f.main_host[1]))
+        # worker = self.userMapper.getUser(worker_name, worker_password, self._f.main_host[0] + ':' + str(self._f.main_host[1]))
+        worker = database.get_worker(self._f.main_host[0], self._f.main_host[1], worker_name, worker_password)
         if not worker:
             log.info("User with local user/pass '%s:%s' doesn't have an account on '%s:%d' pool" % \
             (worker_name, worker_password, self._f.main_host[0], self._f.main_host[1])
@@ -190,7 +191,11 @@ class StratumProxyService(GenericService):
             raise SubmitException("Connection is not subscribed")
         
         start = time.time()
-        worker_name = self.userMapper.getWorkerName(worker_name, self._f.main_host[0] + ':' + str(self._f.main_host[1]))
+        # worker_name = self.userMapper.getWorkerName(worker_name, self._f.main_host[0] + ':' + str(self._f.main_host[1]))
+        worker = database.get_worker(self._f.main_host[0], self._f.main_host[1], worker_name)
+        worker_name = ''
+        if worker:
+            worker_name = worker['remoteUsername']
         try:
             result = (yield self._f.rpc('mining.submit', [worker_name, job_id, tail+extranonce2, ntime, nonce]))
         except RemoteServiceException as exc:

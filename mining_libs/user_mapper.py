@@ -74,10 +74,10 @@ class UserMapper():
         'melnichevv': {
             'password': 'test',
             'workers' : {
-                # 'stratum.bitcoin.cz:3333' : {
-                #     'remoteUsername': 'melnichevv.worker1',
-                #     'remotePassword': 'SbvF3LLT'
-                # },
+                'stratum.bitcoin.cz:3333' : {
+                    'remoteUsername': 'melnichevv.worker1',
+                    'remotePassword': 'SbvF3LLT'
+                },
                 'mint.bitminter.com:3333' : {
                     'remoteUsername': 'melnichevv_worker1',
                     'remotePassword': ''

@@ -197,7 +197,7 @@ CREATE TABLE `Worker` (
   `name` varchar(200) NOT NULL,
   `password` varchar(200) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniqueUserWorker` (`userId`,`name`),
+#   UNIQUE KEY `uniqueUserWorker` (`userId`,`name`),
   CONSTRAINT `Worker_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `User` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -206,18 +206,18 @@ CREATE TABLE `Worker` (
 -- Table structure for table `WorkerCoin`
 --
 
-DROP TABLE IF EXISTS `WorkerCoin`;
+DROP TABLE IF EXISTS `WorkerService`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `WorkerCoin` (
+CREATE TABLE `WorkerService` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `workerId` int(10) unsigned NOT NULL,
-  `coinId` int(10) unsigned NOT NULL,
+  `serviceId` int(10) unsigned NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `workerId` (`workerId`,`coinId`),
-  KEY `coinId` (`coinId`),
-  CONSTRAINT `WorkerCoin_ibfk_1` FOREIGN KEY (`workerId`) REFERENCES `Worker` (`id`),
-  CONSTRAINT `WorkerCoin_ibfk_2` FOREIGN KEY (`coinId`) REFERENCES `Coin` (`id`)
+  UNIQUE KEY `workerId` (`workerId`,`serviceId`),
+  KEY `serviceId` (`serviceId`),
+  CONSTRAINT `WorkerService_ibfk_1` FOREIGN KEY (`workerId`) REFERENCES `Worker` (`id`),
+  CONSTRAINT `WorkerService_ibfk_2` FOREIGN KEY (`serviceId`) REFERENCES `Service` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

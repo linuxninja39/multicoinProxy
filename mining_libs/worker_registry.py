@@ -3,9 +3,10 @@ import time
 import stratum.logger
 from config.db import dbEngine
 from mining_libs.user_mapper import UserMapper
-from model.models import User
+from model.old_models import User
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import and_
+from mining_libs import database
 
 log = stratum.logger.get_logger('proxy')
 
@@ -13,7 +14,7 @@ class WorkerRegistry(object):
     userMapper = UserMapper()
     Session = sessionmaker(bind=dbEngine)
     session = Session()
-    host = ''
+    host = port = None
     def __init__(self, f):
         self.f = f # Factory of Stratum client
         self.clear_authorizations()
@@ -34,8 +35,9 @@ class WorkerRegistry(object):
         log.exception("Cannot authorize worker '%s'" % worker_name)
         self.last_failure = time.time()
 
-    def set_host(self, host):
+    def set_host(self, host, port):
         self.host = host
+        self.port = port
 
     # def authorize(self, worker_name, password):
     #     if worker_name in self.authorized:
@@ -74,10 +76,11 @@ class WorkerRegistry(object):
             log.warning("Authentication of user '%s' with password '%s' failed, next attempt in few seconds..." % \
                     (worker_name, password))
             return False
-        worker = self.userMapper.getUser(worker_name, password, self.host)
+        # worker = self.userMapper.getUser(worker_name, password, self.host)
+        worker = database.get_worker(self.host, self.port, worker_name, password)
         if not worker:
-            log.info("User with local user/pass '%s:%s' doesn't have an account on '%s' pool" % \
-            (worker_name, password, self.host)
+            log.info("User with local user/pass '%s:%s' doesn't have an account on '%s:%d' pool" % \
+            (worker_name, password, self.host, self.port)
             )
             return False
 
