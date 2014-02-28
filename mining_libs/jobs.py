@@ -82,6 +82,7 @@ class Job(object):
 class JobRegistry(object):   
     def __init__(self, f, cmd, no_midstate, real_target, use_old_target=False):
         self.f = f
+        self.cp = f
         self.cmd = cmd # execute this command on new block
         self.no_midstate = no_midstate # Indicates if calculate midstate for getwork
         self.real_target = real_target # Indicates if real stratum target will be propagated to miners
@@ -254,4 +255,4 @@ class JobRegistry(object):
         nonce = header[noncepos:noncepos+8]
             
         # 5. Submit share to the pool
-        return self.f.rpc('mining.submit', [worker_name, job.job_id, extranonce2_hex, ntime, nonce])
+        return self.cp.gwc(worker_name, job.job_id).rpc('mining.submit', [worker_name, job.job_id, extranonce2_hex, ntime, nonce])

@@ -170,10 +170,11 @@ class Root(Resource):
             return NOT_DONE_YET
        
         d = defer.maybeDeferred(self.workers.authorize, worker_name, password)
-        worker = database.get_worker(self.host, self.port, worker_name, password)
-        worker_name = ''
-        if worker:
-            worker_name = worker['remoteUsername']
+        # worker = database.get_worker(self.host, self.port, worker_name, password)
+        # worker_name = ''
+        pool_worker = database.get_best_pool_and_worker_by_proxy_user(worker_name, password)
+        if pool_worker:
+            worker_name = pool_worker['username']
         d.addCallback(self._on_authorized, request, worker_name)
         d.addErrback(self._on_failure, request)    
         return NOT_DONE_YET

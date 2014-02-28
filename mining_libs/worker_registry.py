@@ -10,13 +10,16 @@ from mining_libs import database
 
 log = stratum.logger.get_logger('proxy')
 
+
 class WorkerRegistry(object):
     userMapper = UserMapper()
     Session = sessionmaker(bind=dbEngine)
     session = Session()
     host = port = None
+
     def __init__(self, f):
-        self.f = f # Factory of Stratum client
+        self.f = f  # Factory of Stratum client
+        self.cp = f  # Connection Pool with Stratum client's factories
         self.clear_authorizations()
 
     def clear_authorizations(self):
@@ -25,7 +28,7 @@ class WorkerRegistry(object):
         self.last_failure = 0
 
     def _on_authorized(self, result, worker_name):
-        if result == True:
+        if result:
             self.authorized.append(worker_name)
         else:
             self.unauthorized.append(worker_name)
@@ -66,30 +69,32 @@ class WorkerRegistry(object):
     #     d.addErrback(self._on_failure, worker_name)
     #     return d
 
-    def authorize(self, worker_name, password):
-        log.info(worker_name + ' ' + password)
-        if worker_name in self.authorized:
+    def authorize(self, proxyusername, password, pool=None):
+        log.info(proxyusername + ' ' + password)
+        if proxyusername in self.authorized:
             return True
 
-        if worker_name in self.unauthorized and time.time() - self.last_failure < 60:
+        if proxyusername in self.unauthorized and time.time() - self.last_failure < 60:
             # Prevent flooding of mining.authorize() requests
             log.warning("Authentication of user '%s' with password '%s' failed, next attempt in few seconds..." % \
-                    (worker_name, password))
+                        (proxyusername, password))
             return False
         # worker = self.userMapper.getUser(worker_name, password, self.host)
-        worker = database.get_worker(self.host, self.port, worker_name, password)
-        if not worker:
-            log.info("User with local user/pass '%s:%s' doesn't have an account on '%s:%d' pool" % \
-            (worker_name, password, self.host, self.port)
+        # worker = database.get_worker(self.host, self.port, proxyusername, password)
+        pool_worker = database.get_best_pool_and_worker_by_proxy_user(proxyusername, password)
+        if not pool_worker:
+            # log.info("User with local user/pass '%s:%s' doesn't have an account on '%s:%d' pool" % \
+            log.info("User with local user/pass '%s:%s' failed" % \
+                     (proxyusername, password)
             )
             return False
 
-        log.info("Local user/pass '%s:%s'. Remote user/pass '%s:%s' on '%s' pool" % \
-            (worker_name, password, worker['remoteUsername'], worker['remotePassword'], self.host)
-            )
-        d = self.f.rpc('mining.authorize', [worker['remoteUsername'], worker['remotePassword']])
-        d.addCallback(self._on_authorized, worker['remoteUsername'])
-        d.addErrback(self._on_failure, worker['remoteUsername'])
+        log.info("Local user/pass '%s:%s'. Remote user/pass '%s:%s' on '%s:%d' pool" % \
+                 (proxyusername, password, pool_worker['username'], pool_worker['password'], pool_worker['host'], pool_worker['port'])
+        )
+        d = self.cp.gwc(worker_name=pool_worker['username'], worker_password=pool_worker['password'], id=pool_worker['id'], job_id=False).rpc('mining.authorize', [pool_worker['username'], pool_worker['password']])
+        d.addCallback(self._on_authorized, pool_worker['username'])
+        d.addErrback(self._on_failure, pool_worker['username'])
         return d
 
     def is_authorized(self, worker_name):

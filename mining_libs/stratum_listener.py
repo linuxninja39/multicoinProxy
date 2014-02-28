@@ -92,6 +92,7 @@ class StratumProxyService(GenericService):
     userMapper = UserMapper()
     
     _f = None # Factory of upstream Stratum connection
+    _cp = None # Connection Pool of factories of upstream Stratum connection
     extranonce1 = None
     extranonce2_size = None
     tail_iterator = 0
@@ -100,7 +101,8 @@ class StratumProxyService(GenericService):
     @classmethod
     def _set_upstream_factory(cls, f):
         cls._f = f
-        
+        cls._cp = f
+
     @classmethod
     def _set_extranonce(cls, extranonce1, extranonce2_size):
         cls.extranonce1 = extranonce1
@@ -135,23 +137,23 @@ class StratumProxyService(GenericService):
         return result
             
     @defer.inlineCallbacks
-    def authorize(self, worker_name, worker_password, *args):
+    def authorize(self, proxyusername, password, *args):
         # log.info(worker_name + ' ' + worker_password)
         # worker = self.userMapper.getUser(worker_name, worker_password, self._f.main_host[0] + ':' + str(self._f.main_host[1]))
-        worker = database.get_worker(self._f.main_host[0], self._f.main_host[1], worker_name, worker_password)
-        if not worker:
-            log.info("User with local user/pass '%s:%s' doesn't have an account on '%s:%d' pool" % \
-            (worker_name, worker_password, self._f.main_host[0], self._f.main_host[1])
-            )
+        pool_worker = database.get_best_pool_and_worker_by_proxy_user(proxyusername, password)
+        # worker = database.get_worker(self._f.main_host[0], self._f.main_host[1], worker_name, worker_password)
+        if not pool_worker:
+            log.info("User with local user/pass '%s:%s' doesn't have an account on our proxy" % (proxyusername, password))
             defer.returnValue(False)
 
         log.info("Local user/pass '%s:%s'. Remote user/pass '%s:%s' on '%s:%d' pool" % \
-            (worker_name, worker_password, worker['remoteUsername'], worker['remotePassword'], self._f.main_host[0], self._f.main_host[1])
+            (proxyusername, password, pool_worker['username'], pool_worker['password'], pool_worker['host'], pool_worker['port'])
         )
+        self._f = database.get_pool(pool_worker['username'], pool_worker['id'])
         if self._f.client is None or not self._f.client.connected:
             yield self._f.on_connect
                         
-        result = (yield self._f.rpc('mining.authorize', [worker['remoteUsername'], worker['remotePassword']]))
+        result = (yield self._f.rpc('mining.authorize', [pool_worker['username'], pool_worker['password']]))
         log.info(result)
         defer.returnValue(result)
     
@@ -182,7 +184,15 @@ class StratumProxyService(GenericService):
             
     @defer.inlineCallbacks
     def submit(self, worker_name, job_id, extranonce2, ntime, nonce, *args):
-        if self._f.client == None or not self._f.client.connected:
+        f = self._cp.gwc(worker_name=worker_name, id=job_id, job=True)
+        if not f:
+            defer.returnValue(False)
+        worker = database.get_worker(host=f.host, port=f.port, username=worker_name)
+        if worker:
+            worker_name = worker['remoteUsername']
+        else:
+            defer.returnValue(False)
+        if f.client is None or not f.client.connected:
             raise SubmitException("Upstream not connected")
 
         session = self.connection_ref().get_session()
@@ -192,12 +202,12 @@ class StratumProxyService(GenericService):
         
         start = time.time()
         # worker_name = self.userMapper.getWorkerName(worker_name, self._f.main_host[0] + ':' + str(self._f.main_host[1]))
-        worker = database.get_worker(self._f.main_host[0], self._f.main_host[1], worker_name)
-        worker_name = ''
-        if worker:
-            worker_name = worker['remoteUsername']
+        # pool = database.get_pool(worker_name, job_id, job=True)
+        # if not pool:
+        #     defer.returnValue(False)
+
         try:
-            result = (yield self._f.rpc('mining.submit', [worker_name, job_id, tail+extranonce2, ntime, nonce]))
+            result = (yield f.rpc('mining.submit', [worker_name, job_id, tail+extranonce2, ntime, nonce]))
         except RemoteServiceException as exc:
             response_time = (time.time() - start) * 1000
             log.info("[%dms] Share from '%s' REJECTED: %s" % (response_time, worker_name, str(exc)))

@@ -185,6 +185,27 @@ CREATE TABLE `UserFirstName` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `UserFirstName`
+--
+
+DROP TABLE IF EXISTS `UserCoin`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `UserCoin` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `userId` int(10) unsigned NOT NULL,
+  `coinId` int(10) unsigned NOT NULL,
+  `mine` bool NOT NULL default FALSE,
+  PRIMARY KEY (`id`),
+  KEY `userId` (`userId`),
+  KEY `coinId` (`coinId`),
+  UNIQUE KEY `uniqueUserCoin` (`userId`,`coinId`),
+  CONSTRAINT `UserCoin_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `User` (`id`),
+  CONSTRAINT `UserCoin_ibfk_2` FOREIGN KEY (`coinId`) REFERENCES `Coin` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `Worker`
 --
 
