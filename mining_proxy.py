@@ -36,61 +36,40 @@ from mining_libs import multicast_responder
 from mining_libs import version
 from mining_libs import utils
 from mining_libs.connection_pool import ConnectionPool
-from mining_libs import database
 
 import stratum.logger
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description='This proxy allows you to run getwork-based miners against Stratum mining pool.')
-    parser.add_argument('-o', '--host', dest='host', type=str, default='mint.bitminter.com',
-                        help='Hostname of Stratum mining pool')
+    parser = argparse.ArgumentParser(description='This proxy allows you to run getwork-based miners against Stratum mining pool.')
+    parser.add_argument('-o', '--host', dest='host', type=str, default='mint.bitminter.com', help='Hostname of Stratum mining pool')
     parser.add_argument('-p', '--port', dest='port', type=int, default=3333, help='Port of Stratum mining pool')
     # parser.add_argument('-o', '--host', dest='host', type=str, default='localhost', help='Hostname of Stratum mining pool')
     # parser.add_argument('-p', '--port', dest='port', type=int, default=50013, help='Port of Stratum mining pool')
-    parser.add_argument('-sh', '--stratum-host', dest='stratum_host', type=str, default='0.0.0.0',
-                        help='On which network interface listen for stratum miners. Use "localhost" for listening on internal IP only.')
-    parser.add_argument('-sp', '--stratum-port', dest='stratum_port', type=int, default=3333,
-                        help='Port on which port listen for stratum miners.')
-    parser.add_argument('-oh', '--getwork-host', dest='getwork_host', type=str, default='0.0.0.0',
-                        help='On which network interface listen for getwork miners. Use "localhost" for listening on internal IP only.')
-    parser.add_argument('-gp', '--getwork-port', dest='getwork_port', type=int, default=8332,
-                        help='Port on which port listen for getwork miners. Use another port if you have bitcoind RPC running on this machine already.')
-    parser.add_argument('-nm', '--no-midstate', dest='no_midstate', action='store_true',
-                        help="Don't compute midstate for getwork. This has outstanding performance boost, but some old miners like Diablo don't work without midstate.")
-    parser.add_argument('-rt', '--real-target', dest='real_target', action='store_true',
-                        help="Propagate >diff1 target to getwork miners. Some miners work incorrectly with higher difficulty.")
-    parser.add_argument('-cl', '--custom-lp', dest='custom_lp', type=str,
-                        help='Override URL provided in X-Long-Polling header')
-    parser.add_argument('-cs', '--custom-stratum', dest='custom_stratum', type=str,
-                        help='Override URL provided in X-Stratum header')
-    parser.add_argument('-cu', '--custom-user', dest='custom_user', type=str,
-                        help='Use this username for submitting shares')
-    parser.add_argument('-cp', '--custom-password', dest='custom_password', type=str,
-                        help='Use this password for submitting shares')
-    parser.add_argument('--old-target', dest='old_target', action='store_true',
-                        help='Provides backward compatible targets for some deprecated getwork miners.')
-    parser.add_argument('--blocknotify', dest='blocknotify_cmd', type=str, default='',
-                        help='Execute command when the best block changes (%%s in BLOCKNOTIFY_CMD is replaced by block hash)')
-    parser.add_argument('--socks', dest='proxy', type=str, default='',
-                        help='Use socks5 proxy for upstream Stratum connection, specify as host:port')
-    parser.add_argument('--tor', dest='tor', action='store_true',
-                        help='Configure proxy to mine over Tor (requires Tor running on local machine)')
+    parser.add_argument('-sh', '--stratum-host', dest='stratum_host', type=str, default='0.0.0.0', help='On which network interface listen for stratum miners. Use "localhost" for listening on internal IP only.')
+    parser.add_argument('-sp', '--stratum-port', dest='stratum_port', type=int, default=3333, help='Port on which port listen for stratum miners.')
+    parser.add_argument('-oh', '--getwork-host', dest='getwork_host', type=str, default='0.0.0.0', help='On which network interface listen for getwork miners. Use "localhost" for listening on internal IP only.')
+    parser.add_argument('-gp', '--getwork-port', dest='getwork_port', type=int, default=8332, help='Port on which port listen for getwork miners. Use another port if you have bitcoind RPC running on this machine already.')
+    parser.add_argument('-nm', '--no-midstate', dest='no_midstate', action='store_true', help="Don't compute midstate for getwork. This has outstanding performance boost, but some old miners like Diablo don't work without midstate.")
+    parser.add_argument('-rt', '--real-target', dest='real_target', action='store_true', help="Propagate >diff1 target to getwork miners. Some miners work incorrectly with higher difficulty.")
+    parser.add_argument('-cl', '--custom-lp', dest='custom_lp', type=str, help='Override URL provided in X-Long-Polling header')
+    parser.add_argument('-cs', '--custom-stratum', dest='custom_stratum', type=str, help='Override URL provided in X-Stratum header')
+    parser.add_argument('-cu', '--custom-user', dest='custom_user', type=str, help='Use this username for submitting shares')
+    parser.add_argument('-cp', '--custom-password', dest='custom_password', type=str, help='Use this password for submitting shares')
+    parser.add_argument('--old-target', dest='old_target', action='store_true', help='Provides backward compatible targets for some deprecated getwork miners.')
+    parser.add_argument('--blocknotify', dest='blocknotify_cmd', type=str, default='', help='Execute command when the best block changes (%%s in BLOCKNOTIFY_CMD is replaced by block hash)')
+    parser.add_argument('--socks', dest='proxy', type=str, default='', help='Use socks5 proxy for upstream Stratum connection, specify as host:port')
+    parser.add_argument('--tor', dest='tor', action='store_true', help='Configure proxy to mine over Tor (requires Tor running on local machine)')
     parser.add_argument('-t', '--test', dest='test', action='store_true', help='Run performance test on startup')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
-                        help='Enable low-level debugging messages')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='Enable low-level debugging messages')
     parser.add_argument('-ns', '--no-switch', dest='no_switch', action='store_true', help='Disable switching mode.')
-    parser.add_argument('-sw', '--switch-periodicity', dest='switch_periodicity', type=int, default=15,
-                        help='Override default switch periodicity.')
+    parser.add_argument('-sw', '--switch-periodicity', dest='switch_periodicity', type=int, default=15, help='Override default switch periodicity.')
     parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', help='Make output more quiet')
     parser.add_argument('-i', '--pid-file', dest='pid_file', type=str, help='Store process pid to the file')
     return parser.parse_args()
 
-
 from stratum import settings
-
-settings.LOGLEVEL = 'INFO'
+settings.LOGLEVEL='INFO'
 
 if __name__ == '__main__':
     # We need to parse args & setup Stratum environment
@@ -105,12 +84,10 @@ if __name__ == '__main__':
 
 log = stratum.logger.get_logger('proxy')
 
-
-def on_shutdown(cp):
+def on_shutdown(f):
     '''Clean environment properly'''
     log.info("Shutting down proxy...")
-    cp.on_shutdown()
-
+    f.is_reconnecting = False # Don't let stratum factory to reconnect again
 
 @defer.inlineCallbacks
 def on_connect(f, workers, job_registry):
@@ -136,7 +113,6 @@ def on_connect(f, workers, job_registry):
 
     defer.returnValue(f)
 
-
 def on_disconnect(f, workers, job_registry):
     '''Callback when proxy get disconnected from the pool'''
     log.info("Disconnected from Stratum pool at %s:%d" % f.main_host)
@@ -148,7 +124,6 @@ def on_disconnect(f, workers, job_registry):
     workers.clear_authorizations()
 
     return f
-
 
 def test_launcher(result, job_registry):
     def run_test():
@@ -165,13 +140,11 @@ def test_launcher(result, job_registry):
                 job_registry.getwork(no_midstate=not m)
 
             log.info("%d getworks generated in %.03f sec, %d gw/s" % \
-                     (n, time.time() - start, n / (time.time() - start)))
+                     (n, time.time() - start, n / (time.time()-start)))
 
         log.info("Test done")
-
     reactor.callLater(1, run_test)
     return result
-
 
 def print_deprecation_warning():
     '''Once new version is detected, this method prints deprecation warning every 30 seconds.'''
@@ -179,134 +152,129 @@ def print_deprecation_warning():
     log.warning("New proxy version available! Please update!")
     reactor.callLater(30, print_deprecation_warning)
 
-
 def test_update():
     '''Perform lookup for newer proxy version, on startup and then once a day.
     When new version is found, it starts printing warning message and turned off next checks.'''
 
-    GIT_URL = 'https://raw.github.com/slush0/stratum-mining-proxy/master/mining_libs/version.py'
+    GIT_URL='https://raw.github.com/slush0/stratum-mining-proxy/master/mining_libs/version.py'
 
     import urllib2
-
     log.warning("Checking for updates...")
     try:
         if version.VERSION not in urllib2.urlopen(GIT_URL).read():
             print_deprecation_warning()
-            return  # New version already detected, stop periodic checks
+            return # New version already detected, stop periodic checks
     except:
         log.warning("Check failed.")
 
-    reactor.callLater(3600 * 24, test_update)
-
+    reactor.callLater(3600*24, test_update)
 
 def test():
     log.warning('test')
     reactor.callLater(5, test)
 
-
 def switch_proxy(f, periodicity, workers, job_registry, host, getwork):
     # TODO Add Getting 'the best' coin
-    pool = database.get_best_coin(host)
-    if pool:
-        host = pool['host']
-        port = pool['port']
-        log.warning("-----------------------------------------------------------------------")
-        log.warning("--------------------------Switching To %s:%d---------------------------" % (host, port))
-        log.warning("-----------------------------------------------------------------------")
+    if host == 'mint.bitminter.com':
+        host = 'stratum.bitcoin.cz'
+    else:
+        host = 'mint.bitminter.com'
+    port = 3333
+    log.warning("-----------------------------------------------------------------------")
+    log.warning("--------------------------Switching To %s:%d---------------------------" % (host, port))
+    log.warning("-----------------------------------------------------------------------")
 
-        # job_registry = jobs.JobRegistry(self._f, cmd=jobs.JobRegistry.cmd, scrypt_target=jobs.JobRegistry.scrypt_target,
-        #                no_midstate=jobs.JobRegistry.no_midstate, real_target=jobs.JobRegistry.real_target, use_old_target=jobs.JobRegistry.old_target)
+    # job_registry = jobs.JobRegistry(self._f, cmd=jobs.JobRegistry.cmd, scrypt_target=jobs.JobRegistry.scrypt_target,
+    #                no_midstate=jobs.JobRegistry.no_midstate, real_target=jobs.JobRegistry.real_target, use_old_target=jobs.JobRegistry.old_target)
 
-        # job_registry = jobs.JobRegistry
-        # client_service.ClientMiningService.job_registry = job_registry
-        # client_service.ClientMiningService.reset_timeout()
-        #
-        # f = SocketTransportClientFactory('localhost', 50014,
-        #         debug=self._f.debug, proxy=self._f.proxy,
-        #         event_handler=client_service.ClientMiningService)
-        # workers = worker_registry.WorkerRegistry(f)
-        # log.info('Switch coin middle')
-        # self._f = f
-        # self._f.on_connect(workers, job_registry)
-        # log.info('-------------------------------')
-        # log.info('Reconnecting to localhost:50014')
-        # log.info('-------------------------------')
-        # self._f.reconnect('localhost', 50014, 60)
-        # reactor.listenMulticast(3333, multicast_responder.MulticastResponder(('localhost', 50014), 3333, 8332), listenMultiple=True)
+    # job_registry = jobs.JobRegistry
+    # client_service.ClientMiningService.job_registry = job_registry
+    # client_service.ClientMiningService.reset_timeout()
+    #
+    # f = SocketTransportClientFactory('localhost', 50014,
+    #         debug=self._f.debug, proxy=self._f.proxy,
+    #         event_handler=client_service.ClientMiningService)
+    # workers = worker_registry.WorkerRegistry(f)
+    # log.info('Switch coin middle')
+    # self._f = f
+    # self._f.on_connect(workers, job_registry)
+    # log.info('-------------------------------')
+    # log.info('Reconnecting to localhost:50014')
+    # log.info('-------------------------------')
+    # self._f.reconnect('localhost', 50014, 60)
+    # reactor.listenMulticast(3333, multicast_responder.MulticastResponder(('localhost', 50014), 3333, 8332), listenMultiple=True)
 
 
-        # Setup multicast responder
-        # host = '127.0.0.1'
-        # port = 50014
-        # host = 'mint.bitminter.com'
-        # args.stratum_host = '0.0.0.0'
-        # args.stratum_port = 3333
-        # args.getwork_host = '0.0.0.0'
-        # args.getwork_port = 8332
-        #
-        # log.warning("Trying to connect to Stratum pool at %s:%d" % (host, port))
-        f.main_host = (host, port)
-        # f.port = port
-        # f.connect()
-        f.reconnect(host=host, port=port)
-        workers.set_host(host, port)
-        # f.retry()
-        # reactor.connectTCP(host, port, f)
-        # log.warning(workers.authorized)
-        # log.warning(workers.unauthorized)
-        # workers.clear_authorizations()
-        # f.on_connect.addCallback(on_connect, workers, job_registry)
-        # f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
-        # f = SocketTransportClientFactory(args.host, args.port,
-        #            debug=args.verbose, proxy=args.proxy,
-        #            event_handler=client_service.ClientMiningSezrvice)
-        # f = SocketTransportClientFactory('127.0.0.1', 50014,
-        #            debug=args.verbose, proxy=args.proxy,
-        #            event_handler=client_service.ClientMiningService)
-        #
-        # job_registry = jobs.JobRegistry(
-        #         f,
-        #         cmd=args.blocknotify_cmd,
-        #         no_midstate=args.no_midstate,
-        #         real_target=args.real_target,
-        #         use_old_target=args.old_target
-        #         )
-        # client_service.ClientMiningService.job_registry = job_registry
-        # client_service.ClientMiningService.reset_timeout()
-        #
-        # workers = worker_registry.WorkerRegistry(f)
-        # f.on_connect.addCallback(on_connect, workers, job_registry)
-        # f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
-        #
-        # if args.test:
-        #     f.on_connect.addCallback(test_launcher, job_registry)
-        #
-        # # Cleanup properly on shutdown
-        # reactor.addSystemEventTrigger('before', 'shutdown', on_shutdown, f)
-        #
-        # # Block until proxy connect to the pool
-        # yield f.on_connect
-        #
-        # # Setup stratum listener
-        # if args.stratum_port > 0:
-        #     stratum_listener.StratumProxyService._set_upstream_factory(f)
-        #     reactor.listenTCP(args.stratum_port, SocketTransportFactory(debug=False, event_handler=ServiceEventHandler))
-        #
-        # # Setup multicast responder
-        # # reactor.listenMulticast(3333, multicast_responder.MulticastResponder((args.host, args.port), args.stratum_port, args.getwork_port), listenMultiple=True)
-        # reactor.listenMulticast(3333, multicast_responder.MulticastResponder(('127.0.0.1', 50014), 3333, 8332), listenMultiple=True)
-        # '''
-        # log.warning("-----------------------------------------------------------------------")
-        # if args.getwork_host == '0.0.0.0' and args.stratum_host == '0.0.0.0':
-        #     log.warning("PROXY IS LISTENING ON ALL IPs ON PORT %d (stratum) AND %d (getwork)" % (args.stratum_port, args.getwork_port))
-        # else:
-        #     log.warning("LISTENING FOR MINERS ON http://%s:%d (getwork) and stratum+tcp://%s:%d (stratum)" % \
-        #              (args.getwork_host, args.getwork_port, args.stratum_host, args.stratum_port))
-        # log.warning("-----------------------------------------------------------------------")
-        # '''
-    reactor.callLater(periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry, host=host,
-                      periodicity=periodicity, getwork=getwork)
-
+    # Setup multicast responder
+    # host = '127.0.0.1'
+    # port = 50014
+    # host = 'mint.bitminter.com'
+    # args.stratum_host = '0.0.0.0'
+    # args.stratum_port = 3333
+    # args.getwork_host = '0.0.0.0'
+    # args.getwork_port = 8332
+    #
+    # log.warning("Trying to connect to Stratum pool at %s:%d" % (host, port))
+    f.main_host = (host, port)
+    # f.port = port
+    # f.connect()
+    f.reconnect(host=host, port=port)
+    workers.set_host(host + ':' + str(port))
+    # f.retry()
+    # reactor.connectTCP(host, port, f)
+    # log.warning(workers.authorized)
+    # log.warning(workers.unauthorized)
+    # workers.clear_authorizations()
+    # f.on_connect.addCallback(on_connect, workers, job_registry)
+    # f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
+    # f = SocketTransportClientFactory(args.host, args.port,
+    #            debug=args.verbose, proxy=args.proxy,
+    #            event_handler=client_service.ClientMiningSezrvice)
+    # f = SocketTransportClientFactory('127.0.0.1', 50014,
+    #            debug=args.verbose, proxy=args.proxy,
+    #            event_handler=client_service.ClientMiningService)
+    #
+    # job_registry = jobs.JobRegistry(
+    #         f,
+    #         cmd=args.blocknotify_cmd,
+    #         no_midstate=args.no_midstate,
+    #         real_target=args.real_target,
+    #         use_old_target=args.old_target
+    #         )
+    # client_service.ClientMiningService.job_registry = job_registry
+    # client_service.ClientMiningService.reset_timeout()
+    #
+    # workers = worker_registry.WorkerRegistry(f)
+    # f.on_connect.addCallback(on_connect, workers, job_registry)
+    # f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
+    #
+    # if args.test:
+    #     f.on_connect.addCallback(test_launcher, job_registry)
+    #
+    # # Cleanup properly on shutdown
+    # reactor.addSystemEventTrigger('before', 'shutdown', on_shutdown, f)
+    #
+    # # Block until proxy connect to the pool
+    # yield f.on_connect
+    #
+    # # Setup stratum listener
+    # if args.stratum_port > 0:
+    #     stratum_listener.StratumProxyService._set_upstream_factory(f)
+    #     reactor.listenTCP(args.stratum_port, SocketTransportFactory(debug=False, event_handler=ServiceEventHandler))
+    #
+    # # Setup multicast responder
+    # # reactor.listenMulticast(3333, multicast_responder.MulticastResponder((args.host, args.port), args.stratum_port, args.getwork_port), listenMultiple=True)
+    # reactor.listenMulticast(3333, multicast_responder.MulticastResponder(('127.0.0.1', 50014), 3333, 8332), listenMultiple=True)
+    # '''
+    # log.warning("-----------------------------------------------------------------------")
+    # if args.getwork_host == '0.0.0.0' and args.stratum_host == '0.0.0.0':
+    #     log.warning("PROXY IS LISTENING ON ALL IPs ON PORT %d (stratum) AND %d (getwork)" % (args.stratum_port, args.getwork_port))
+    # else:
+    #     log.warning("LISTENING FOR MINERS ON http://%s:%d (getwork) and stratum+tcp://%s:%d (stratum)" % \
+    #              (args.getwork_host, args.getwork_port, args.stratum_host, args.stratum_port))
+    # log.warning("-----------------------------------------------------------------------")
+    # '''
+    reactor.callLater(periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry, host=host, periodicity=periodicity, getwork=getwork)
 
 @defer.inlineCallbacks
 def main(args):
@@ -352,88 +320,93 @@ def main(args):
 
     log.warning("Trying to connect to Stratum pool at %s:%d" % (args.host, args.port))
 
-    # cp = ConnectionPool(debug=args.verbose, proxy=proxy,
-    #                     event_handler=client_service.ClientMiningService)
-
+    # cp = ConnectionPool();
     # Connect to Stratum pool
-    # f = SocketTransportClientFactory(args.host, args.port,
-    #                                  debug=args.verbose, proxy=proxy,
-    #                                  event_handler=client_service.ClientMiningService)
+    f = SocketTransportClientFactory(args.host, args.port,
+               debug=args.verbose, proxy=proxy,
+               event_handler=client_service.ClientMiningService)
+    client_service.ClientMiningService.set_cp(f)
+    # f = cp.getConnection(
+    #         'default',
+    #         host=args.host,
+    #         port=args.port,
+    #         debug=args.verbose,
+    #         proxy=proxy,
+    #         event_handler=client_service.ClientMiningService
+    #         )
+    # f1 = cp.getConnection(
+    #         'additional',
+    #         host='127.0.0.1',
+    #         port='50014',
+    #         debug=args.verbose,
+    #         proxy=proxy,
+    #         event_handler=client_service.ClientMiningService
+    #         )
+    # test()
 
-    # cp.init_all_pools()
+    job_registry = jobs.JobRegistry(
+            f,
+            cmd=args.blocknotify_cmd,
+            no_midstate=args.no_midstate,
+            real_target=args.real_target,
+            use_old_target=args.old_target
+            )
+    client_service.ClientMiningService.job_registry = job_registry
+    client_service.ClientMiningService.reset_timeout()
 
-    # job_registry = jobs.JobRegistry(  # Done
-    #     # f,
-    #     cp,
-    #     cmd=args.blocknotify_cmd,
-    #     no_midstate=args.no_midstate,
-    #     real_target=args.real_target,
-    #     use_old_target=args.old_target
-    # )
-    # client_service.ClientMiningService.job_registry = job_registry
-    # client_service.ClientMiningService.reset_timeout()
-    #
-    # workers = worker_registry.WorkerRegistry(cp)  # Done
-    # cp.workers = workers
-    # cp.job_registry = job_registry
-    # cp.add_on_connect_callback(on_connect, workers, job_registry)  # Done
-    # cp.add_on_disconnect_callback(on_disconnect, workers, job_registry)  # Done
-    # workers.set_host(args.host, args.port)
+    workers = worker_registry.WorkerRegistry(f)
+    f.on_connect.addCallback(on_connect, workers, job_registry)
+    f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
+    workers.set_host(args.host + ':' + str(args.port))
 
-    # if args.test:
-    #     f.on_connect.addCallback(test_launcher, job_registry)
+    if args.test:
+        f.on_connect.addCallback(test_launcher, job_registry)
 
     # Cleanup properly on shutdown
-    # reactor.addSystemEventTrigger('before', 'shutdown', on_shutdown, cp)
+    reactor.addSystemEventTrigger('before', 'shutdown', on_shutdown, f)
 
     # Block until proxy connect to the pool
-    # yield cp.on_connect
+    yield f.on_connect
 
     # Setup getwork listener
-    # getwork_lstnr = None
-    # if args.getwork_port > 0:
-    #     getwork_lstnr = getwork_listener.Root(job_registry, workers,
-    #                                           stratum_host=args.stratum_host, stratum_port=args.stratum_port,
-    #                                           custom_lp=args.custom_lp, custom_stratum=args.custom_stratum,
-    #                                           custom_user=args.custom_user, custom_password=args.custom_password)
-    #     getwork_lstnr.set_host(args.host + ':' + str(args.port))
-    #     conn = reactor.listenTCP(args.getwork_port, Site(getwork_lstnr),
-    #                              interface=args.getwork_host)
-    #
-    #     try:
-    #         conn.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)  # Enable keepalive packets
-    #         conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 60)  # Seconds before sending keepalive probes
-    #         conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL,
-    #                                1)  # Interval in seconds between keepalive probes
-    #         conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT,
-    #                                5)  # Failed keepalive probles before declaring other end dead
-    #     except:
-    #         pass  # Some socket features are not available on all platforms (you can guess which one)
+    getwork_lstnr = None
+    if args.getwork_port > 0:
+        getwork_lstnr = getwork_listener.Root(job_registry, workers,
+                                                    stratum_host=args.stratum_host, stratum_port=args.stratum_port,
+                                                    custom_lp=args.custom_lp, custom_stratum=args.custom_stratum,
+                                                    custom_user=args.custom_user, custom_password=args.custom_password)
+        getwork_lstnr.set_host(args.host + ':' + str(args.port))
+        conn = reactor.listenTCP(args.getwork_port, Site(getwork_lstnr),
+                                                    interface=args.getwork_host)
+
+        try:
+            conn.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1) # Enable keepalive packets
+            conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 60) # Seconds before sending keepalive probes
+            conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, 1) # Interval in seconds between keepalive probes
+            conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, 5) # Failed keepalive probles before declaring other end dead
+        except:
+            pass # Some socket features are not available on all platforms (you can guess which one)
 
     # Setup stratum listener
-    # if args.stratum_port > 0:
-    #     stratum_listener.StratumProxyService._set_upstream_factory(cp)
-    #     reactor.listenTCP(args.stratum_port, SocketTransportFactory(debug=False, event_handler=ServiceEventHandler))
+    if args.stratum_port > 0:
+        stratum_listener.StratumProxyService._set_upstream_factory(f)
+        reactor.listenTCP(args.stratum_port, SocketTransportFactory(debug=False, event_handler=ServiceEventHandler))
 
     # Setup multicast responder
-    # reactor.listenMulticast(3333, multicast_responder.MulticastResponder((args.host, args.port), args.stratum_port,
-    #                                                                      args.getwork_port), listenMultiple=True)
+    reactor.listenMulticast(3333, multicast_responder.MulticastResponder((args.host, args.port), args.stratum_port, args.getwork_port), listenMultiple=True)
 
     log.warning("-----------------------------------------------------------------------")
     if args.getwork_host == '0.0.0.0' and args.stratum_host == '0.0.0.0':
-        log.warning("PROXY IS LISTENING ON ALL IPs ON PORT %d (stratum) AND %d (getwork)" % (
-            args.stratum_port, args.getwork_port))
+        log.warning("PROXY IS LISTENING ON ALL IPs ON PORT %d (stratum) AND %d (getwork)" % (args.stratum_port, args.getwork_port))
     else:
         log.warning("LISTENING FOR MINERS ON http://%s:%d (getwork) and stratum+tcp://%s:%d (stratum)" % \
-                    (args.getwork_host, args.getwork_port, args.stratum_host, args.stratum_port))
+                 (args.getwork_host, args.getwork_port, args.stratum_host, args.stratum_port))
     log.warning("-----------------------------------------------------------------------")
     if not args.no_switch:
         log.warning("-----------------------Proxy Switching Scheduled-----------------------")
         log.warning("----------------Switch Periodicity is set to %d seconds----------------" % args.switch_periodicity)
         log.warning("-----------------------------------------------------------------------")
-        reactor.callLater(args.switch_periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry,
-                          host=args.host, periodicity=args.switch_periodicity, getwork=getwork_lstnr)
-
+        reactor.callLater(args.switch_periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry, host=args.host, periodicity=args.switch_periodicity, getwork=getwork_lstnr)
 
 if __name__ == '__main__':
     main(args)

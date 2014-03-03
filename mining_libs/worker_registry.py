@@ -69,7 +69,7 @@ class WorkerRegistry(object):
     #     d.addErrback(self._on_failure, worker_name)
     #     return d
 
-    def authorize(self, proxyusername, password, pool=None):
+    def authorize(self, proxyusername, password):
         log.info(proxyusername + ' ' + password)
         if proxyusername in self.authorized:
             return True

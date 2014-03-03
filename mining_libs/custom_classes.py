@@ -2,6 +2,7 @@ __author__ = 'melnichevv'
 
 from stratum.socket_transport import SocketTransportClientFactory
 from stratum import custom_exceptions
+import socket
 
 import stratum.logger
 log = stratum.logger.get_logger('proxy')
@@ -14,6 +15,11 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
     #              debug=False, signing_key=None, signing_id=None,
     #              is_reconnecting=True, proxy=None,
     #              event_handler=GenericEventHandler)
+
+    def get_ip(self):
+        log.info(self.protocol)
+        addr = socket.gethostbyname(self.main_host[0])
+        log.info(addr)
 
 
     def rpc(self, method, params, *args, **kwargs):

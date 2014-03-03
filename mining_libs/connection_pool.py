@@ -1,5 +1,7 @@
-from stratum.socket_transport import SocketTransportFactory, SocketTransportClientFactory
-from mining_libs import database
+from stratum.socket_transport import SocketTransportFactory
+from mining_libs.custom_classes import CustomSocketTransportClientFactory as SocketTransportClientFactory
+from mining_libs import database, jobs
+
 
 class ConnectionPool():
     _connections = {}
@@ -8,11 +10,18 @@ class ConnectionPool():
     event_handler = None
     job_registry = None
     workers = None
+    cmd = None
+    no_midstate = None
+    real_target = None
+    use_old_target = None
 
-    def __init__(self, debug, proxy, event_handler):
+    def __init__(self, debug, proxy, event_handler, cmd, no_midstate, real_target, use_old_target):
         self.debug = debug
         self.proxy = proxy
-        self.event_handler = event_handler
+        self.cmd = cmd
+        self.no_midstate = no_midstate
+        self.real_target = real_target
+        self.use_old_target = use_old_target
 
     def get_connection(
             self,
@@ -38,8 +47,13 @@ class ConnectionPool():
     ):
         self._connections[conn_name] = SocketTransportClientFactory(host, port, self.debug, self.proxy,
                                                                     self.event_handler)
-        self.on_connect_callback(self._connections[conn_name])
-        self.on_disconnect_callback(self._connections[conn_name])
+        self._connections[conn_name].job_registry = jobs.JobRegistry(  # Creating JobRegistry for new Socket
+            self._connections[conn_name],
+            cmd=self.cmd,
+            no_midstate=self.no_midstate,
+            real_target=self.real_target,
+            use_old_target=self.use_old_target
+        )
 
         return self._connections[conn_name]
 
@@ -65,7 +79,7 @@ class ConnectionPool():
             pool_info = database.get_pool_by_id(pool_id)
             pool = self.get_connection(pool_info['id'], pool_info['host'], pool_info['port'])
             return pool.on_connect
-                # return pool
+            # return pool
             # except TypeError:
             #     return self._connections.itervalues().next()  # Temporarily
         elif worker_name and worker_password:
@@ -80,12 +94,6 @@ class ConnectionPool():
     def add_on_disconnect_callback(self, on_disconnect, workers, job_registry):
         for conn in self._connections:
             conn.on_disconnect.addCallback(on_disconnect, workers, job_registry)
-
-    def on_connect_callback(self, f):
-        f.on_connect.addCallback(mining_on_connect, self.workers, self.job_registry)
-
-    def on_disconnect_callback(self, f):
-        f.on_disconnect.addCallback(mining_on_disconnect(), self.workers, self.job_registry)
 
     def on_shutdown(self):
         for conn in self._connections:
