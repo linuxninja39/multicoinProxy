@@ -12,8 +12,6 @@ import stratum.logger
 
 #new import
 from twisted.internet import reactor, defer
-from stratum.socket_transport import SocketTransportFactory
-from mining_libs.custom_classes import CustomSocketTransportClientFactory as SocketTransportClientFactory
 from stratum.services import ServiceEventHandler
 # from twisted.web.server import Site
 #
@@ -68,11 +66,6 @@ class ClientMiningService(GenericEventHandler):
         # let's restart the timeout.
         self.reset_timeout()
         # log.warning('Current method %s' % method )
-        log.info(connection_ref.transport.getPeer().host)
-        log.info(connection_ref.transport.getPeer().port)
-        log.info(params)
-        if self.cp:
-            self.cp.get_ip()
         if method == 'mining.notify':
             '''Proxy just received information about new mining job'''
 
@@ -91,34 +84,55 @@ class ClientMiningService(GenericEventHandler):
             log.debug("merkle_branch = %s" % merkle_branch)
             '''
 
+            # if connection_ref.transport and connection_ref.transport.getPeer() is not None:
+
+            # host = connection_ref.transport.getPeer().host
+            # ip =
+            ip = connection_ref.proxied_ip or connection_ref.transport.getPeer().host
+            port = connection_ref.transport.getPeer().port
+                # if self.cp:
+            f = self.cp.get_connection(ip=ip, port=port)
+
             # Broadcast to Stratum clients
-            stratum_listener.MiningSubscription.on_template(
-                            job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
+            # stratum_listener.MiningSubscription.on_template(
+            # Adding connection_id to job_id
+            f.mining_subscription.on_template(
+                            job_id + '_' + str(f.conn_name), prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
 
             # Broadcast to getwork clients
             job = Job.build_from_broadcast(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime)
             log.info("New job %s for prevhash %s, clean_jobs=%s" % \
                  (job.job_id, utils.format_hash(job.prevhash), clean_jobs))
 
-            self.job_registry.add_template(job, clean_jobs)
-
-
+            f.job_registry.add_template(job, clean_jobs)
+            # self.job_registry.add_template(job, clean_jobs)
 
         elif method == 'mining.set_difficulty':
             difficulty = params[0]
             log.info("Setting new difficulty: %s" % difficulty)
-
-            stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
-            self.job_registry.set_difficulty(difficulty)
+            ip = connection_ref.proxied_ip or connection_ref.transport.getPeer().host
+            port = connection_ref.transport.getPeer().port
+                # if self.cp:
+            f = self.cp.get_connection(ip=ip, port=port)
+            f.difficulty_subscription.on_new_difficulty(difficulty)
+            # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
+            f.job_registry.set_difficulty(difficulty)
+            # self.job_registry.set_difficulty(difficulty)
 
         elif method == 'client.reconnect':
             (hostname, port, wait) = params[:3]
-            new = list(self.job_registry.f.main_host[::])
+            ip = connection_ref.proxied_ip or connection_ref.transport.getPeer().host
+            port = connection_ref.transport.getPeer().port
+                # if self.cp:
+            f = self.cp.get_connection(ip=ip, port=port)
+            new = list(f.main_host[::])
+            # new = list(self.job_registry.f.main_host[::])
             if hostname: new[0] = hostname
             if port: new[1] = port
 
             log.info("Server asked us to reconnect to %s:%d" % tuple(new))
-            self.job_registry.f.reconnect(new[0], new[1], wait)
+            f.reconnect(new[0], new[1], wait)
+            # self.job_registry.f.reconnect(new[0], new[1], wait)
 
         elif method == 'client.add_peers':
             '''New peers which can be used on connection failure'''

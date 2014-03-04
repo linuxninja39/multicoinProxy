@@ -91,6 +91,21 @@ def get_pool_by_id(pool_id):
     return pool
 
 
+def get_pool_id_by_host_and_port(host, port):
+    pool = session.execute(
+        " \
+        SELECT Service.id as id, Host.name as host, Service.port as port From Service \
+        JOIN Host ON Service.hostId = Host.id \
+        WHERE Service.port = :port AND Host.name = :host\
+        ",
+        {
+            'host': host,
+            'port': port
+        }
+    ).first()
+    return pool
+
+
 def get_pool_by_worker_name_and_password(worker_name, worker_password):
     pool = session.execute(
         " \
@@ -128,7 +143,8 @@ def get_best_pool_and_worker_by_proxy_user(proxy_username, proxy_password):
         JOIN ProxyUser ON ProxyUser.userId = User.id \
         WHERE Coin.profitability = (SELECT MAX(c.profitability) FROM Coin c) \
         AND ProxyUser.username = :proxy_username AND ProxyUser.password = :proxy_password AND UserCoin.mine = TRUE\
-        ",
+        ORDER BY id DESC \
+        ", # Order by added temporarily
 
         {
             'proxy_username': proxy_username,
