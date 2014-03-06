@@ -23,9 +23,11 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
     mining_subscription = None  # stratum_listener.py MiningSubscription
     difficulty_subscription = None  # stratum_listener.py DifficultySubscription
     job_registry = None  # jobs.py JobRegistry
+    workers = []  # worker.py Workers
     ip = None  # current proxy's IP Address
     conn_name = None
     connected = False
+    pool = None  # ConnectionPool
 
     def __init__(self, host, port, allow_trusted=True, allow_untrusted=False, debug=False, signing_key=None,
                  signing_id=None, is_reconnecting=True, proxy=None, event_handler=client_service.ClientMiningService, conn_name=None):

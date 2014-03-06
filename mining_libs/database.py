@@ -55,6 +55,7 @@ def get_pools():
         JOIN CoinService ON CoinService.coinId = Coin.id \
         JOIN Service ON Service.id = CoinService.serviceId \
         JOIN Host ON Host.id = Service.hostId \
+        WHERE Coin.profitability = (SELECT MAX(c.profitability) FROM Coin c) \
         "
     )
     return pools

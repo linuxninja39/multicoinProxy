@@ -1,6 +1,7 @@
 from stratum.socket_transport import SocketTransportFactory
 from mining_libs.custom_classes import CustomSocketTransportClientFactory as SocketTransportClientFactory
 from mining_libs import database, jobs
+from mining_libs import worker_registry
 import stratum.logger
 
 log = stratum.logger.get_logger('proxy')
@@ -40,6 +41,8 @@ class ConnectionPool():
         if conn_name is None:
             if ip:
                 conn_name = self.get_pool_by_ip(ip)
+                log.info(ip)
+                log.info(conn_name)
             if conn_name is None:
                 conn_name = database.get_pool_id_by_host_and_port(host, port)
 
@@ -73,18 +76,25 @@ class ConnectionPool():
                                                                        real_target=self.real_target,
                                                                        use_old_target=self.use_old_target
         )
+        self._connections[conn_name].workers = worker_registry.WorkerRegistry(self._connections[conn_name])
+        self._connections[conn_name].workers.set_host(host, port)
+        self._connections[conn_name].pool = self
 
         return self._connections[conn_name]
+
+    def close_conn(self, conn_name):
+        self._connections.pop(conn_name, None)
+        # return
 
     def init_all_pools(self):
         pools = database.get_pools()
         for pool in pools:
-            self._new_connection(pool['id'], pool['host'], pool['port'])
+            self._new_connection(host=pool['host'], port=pool['port'])
         return self
 
     def get_pool_by_ip(self, ip):
         for conn_name in self._connections:
-            log.info(self._connections[conn_name].ip + '------' + ip)
+            # log.info(self._connections[conn_name].ip + '------' + ip)
             if self._connections[conn_name].ip == ip:
                 return conn_name
         return None
@@ -128,6 +138,14 @@ class ConnectionPool():
     def on_connect(self):
         for conn in self._connections:
             conn.yield_on_connect(conn)
+
+    def on_connect_cb(self, callback):
+        for conn in self._connections:
+            self._connections[conn].on_connect.addCallback(callback)
+
+    def on_disconnect_cb(self, callback):
+        for conn in self._connections:
+            self._connections[conn].on_disconnect.addCallback(callback)
 
     def yield_on_connect(conn):
         yield conn.on_connect

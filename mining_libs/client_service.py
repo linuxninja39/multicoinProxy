@@ -101,8 +101,8 @@ class ClientMiningService(GenericEventHandler):
 
             # Broadcast to getwork clients
             job = Job.build_from_broadcast(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime)
-            log.info("New job %s for prevhash %s, clean_jobs=%s" % \
-                 (job.job_id, utils.format_hash(job.prevhash), clean_jobs))
+            log.info("%s:%d - New job %s for prevhash %s, clean_jobs=%s" % \
+                 (f.main_host[0], f.main_host[1], job.job_id, utils.format_hash(job.prevhash), clean_jobs))
 
             f.job_registry.add_template(job, clean_jobs)
             # self.job_registry.add_template(job, clean_jobs)
