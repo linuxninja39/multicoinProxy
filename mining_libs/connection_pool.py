@@ -1,11 +1,77 @@
 from stratum.socket_transport import SocketTransportFactory
+from twisted.internet import defer
 from mining_libs.custom_classes import CustomSocketTransportClientFactory as SocketTransportClientFactory
 from mining_libs import database, jobs
 from mining_libs import worker_registry
 import stratum.logger
-
+from mining_libs import stratum_listener
 log = stratum.logger.get_logger('proxy')
 
+
+@defer.inlineCallbacks
+def new_on_connect(f):
+    '''Callback when proxy get connected to the pool'''
+    log.info("Connected to Stratum pool at %s:%d" % f.main_host)
+    #reactor.callLater(30, f.client.transport.loseConnection)
+
+    # Hook to on_connect again
+    f.on_connect.addCallback(new_on_connect)
+
+    # Every worker have to re-autorize
+    f.workers.clear_authorizations()
+
+    # if args.custom_user:
+    #     log.warning("Authorizing custom user %s, password %s" % (args.custom_user, args.custom_password))
+    #     f.workers.authorize(args.custom_user, args.custom_password)
+
+    # Subscribe for receiving jobs
+    log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
+    log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
+    log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
+    log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
+    (_, extranonce1, extranonce2_size) = (yield f.rpc('mining.subscribe', []))[:3]
+    log.info(extranonce1)
+    log.info(extranonce2_size)
+    # job_registry.set_extranonce(extranonce1, extranonce2_size)
+    # stratum_listener.StratumProxyService._set_extranonce(extranonce1, extranonce2_size)
+    f.job_registry.set_extranonce(extranonce1, extranonce2_size)
+    log.info(f.extranonce1)
+    log.info(f.extranonce2_size)
+    stratum_listener.StratumProxyService._set_extranonce(f, extranonce1, extranonce2_size)
+    log.info(f.extranonce1)
+    log.info(f.extranonce2_size)
+
+    defer.returnValue(f)
+
+
+def on_disconnect(f, workers, job_registry):
+    '''Callback when proxy get disconnected from the pool'''
+    log.info("Disconnected from Stratum pool at %s:%d" % f.main_host)
+    f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
+
+    # stratum_listener.MiningSubscription.disconnect_all()
+    f.mining_subscription.disconnect_all()
+
+    # Reject miners because we don't give a *job :-)
+    workers.clear_authorizations()
+
+    return f
+
+
+def new_on_disconnect(f):
+    '''Callback when proxy get disconnected from the pool'''
+    log.info("Disconnected from Stratum pool at %s:%d" % f.main_host)
+    f.on_disconnect.addCallback(new_on_disconnect)
+
+    # stratum_listener.MiningSubscription.disconnect_all()
+    f.mining_subscription.disconnect_all()
+
+    # Reject miners because we don't give a *job :-)
+    f.workers.clear_authorizations()
+    # f.close_connection(f.conn_name)
+    # defer.returnValue(f)
+    return f
+    # yield f
 
 class ConnectionPool():
     _connections = {}
@@ -18,6 +84,9 @@ class ConnectionPool():
     no_midstate = None
     real_target = None
     use_old_target = None
+    new_users = {}
+    on_connect_callback = None
+    on_disconnect_callback = None
 
     def __init__(self, debug,
                  # proxy,
@@ -79,6 +148,8 @@ class ConnectionPool():
         self._connections[conn_name].workers = worker_registry.WorkerRegistry(self._connections[conn_name])
         self._connections[conn_name].workers.set_host(host, port)
         self._connections[conn_name].pool = self
+        self._connections[conn_name].on_connect.addCallback(new_on_connect)
+        self._connections[conn_name].on_disconnect.addCallback(new_on_disconnect)
 
         return self._connections[conn_name]
 
@@ -92,11 +163,25 @@ class ConnectionPool():
             self._new_connection(host=pool['host'], port=pool['port'])
         return self
 
+    def init_one_pool(self):
+        pools = database.get_pools()
+        for pool in pools:
+            self._new_connection(host=pool['host'], port=pool['port'])
+            break
+        return self
+
     def get_pool_by_ip(self, ip):
         for conn_name in self._connections:
             # log.info(self._connections[conn_name].ip + '------' + ip)
             if self._connections[conn_name].ip == ip:
                 return conn_name
+        pools = database.get_pools()
+        import socket
+        for pool in pools:
+            pool_ip = socket.gethostbyname(pool['host'])
+            pool_ip = ip.split(':')[0]
+            if pool_ip == ip:
+                return pool['id']
         return None
 
     def gwc(self, worker_name=None, worker_password=None, id=None, job=True):

@@ -41,9 +41,10 @@ def get_best_coin(host):
         JOIN Service ON Service.id = CoinService.serviceId \
         JOIN Host ON Host.id = Service.hostId \
         WHERE Coin.profitability = (SELECT MAX(c.profitability) FROM Coin c) \
-        AND Host.name IN (" + preferred_pools +") AND Host.name != :host_name \
-        ",
-        { 'host_name' : host }
+        AND Host.name != :host_name \
+",
+        # AND Host.name IN (" + preferred_pools +") AND Host.name != :host_name \
+        {'host_name': host}
     ).first()
     return pool
 
@@ -144,7 +145,6 @@ def get_best_pool_and_worker_by_proxy_user(proxy_username, proxy_password):
         JOIN ProxyUser ON ProxyUser.userId = User.id \
         WHERE Coin.profitability = (SELECT MAX(c.profitability) FROM Coin c) \
         AND ProxyUser.username = :proxy_username AND ProxyUser.password = :proxy_password AND UserCoin.mine = TRUE\
-        ORDER BY id DESC \
         ", # Order by added temporarily
 
         {
@@ -153,4 +153,3 @@ def get_best_pool_and_worker_by_proxy_user(proxy_username, proxy_password):
         }
     ).first()
     return pool
-

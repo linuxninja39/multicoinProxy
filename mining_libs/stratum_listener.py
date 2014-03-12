@@ -63,15 +63,16 @@ class MiningSubscription(Subscription):
     event = 'mining.notify'
     
     last_broadcast = None
-    
+    f = None
     # @classmethod
     # def disconnect_all(cls):
     #     for subs in Pubsub.iterate_subscribers(cls.event):
     #         subs.connection_ref().transport.loseConnection()
 
     def disconnect_all(self):
-        for subs in Pubsub.iterate_subscribers(self.event):
-            subs.connection_ref().transport.loseConnection()
+        for subs in self.f.pubsub.iterate_subscribers(self.event):
+            if subs.connection_ref():
+                subs.connection_ref().transport.loseConnection()
         
     # @classmethod
     # def on_template(cls, job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs):
@@ -81,6 +82,9 @@ class MiningSubscription(Subscription):
 
     def on_template(self, job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs):
         '''Push new job to subscribed clients'''
+        log.info('mining_subscription')
+        log.info(self)
+        log.info(id(self))
         self.last_broadcast = (job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
         self.emit(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
         
@@ -100,6 +104,30 @@ class MiningSubscription(Subscription):
         on_finish callback solve the issue that job is broadcasted *during*
         the subscription request and client receive messages in wrong order.'''
         self.connection_ref().on_finish.addCallback(self._finish_after_subscribe)
+
+    def emit(self, *args, **kwargs):
+        '''Shortcut for emiting this event to all subscribers.'''
+        if not hasattr(self, 'event'):
+            raise Exception("Subscription.emit() can be used only for subclasses with filled 'event' class variable.")
+        return self.f.pubsub.emit(self.event, *args, **kwargs)
+
+    def emit_single(self, *args, **kwargs):
+        '''Perform emit of this event just for current subscription.'''
+        conn = self.connection_ref()
+        if conn == None:
+            # Connection is closed
+            return
+
+        payload = self.process(*args, **kwargs)
+        if payload != None:
+            log.info('payload')
+            log.info(payload)
+            log.info('payload')
+            if isinstance(payload, (tuple, list)):
+                conn.writeJsonRequest(self.event, payload, is_notification=True)
+                self.after_emit(*args, **kwargs)
+            else:
+                raise Exception("Return object from process() method must be list or None")
         
 class StratumProxyService(GenericService):
     service_type = 'mining'
@@ -107,7 +135,7 @@ class StratumProxyService(GenericService):
     is_default = True
     userMapper = UserMapper()
     
-    _f = None # Factory of upstream Stratum connection
+    _f = None  # Factory of upstream Stratum connection
     extranonce1 = None
     extranonce2_size = None
     tail_iterator = 0
@@ -209,13 +237,29 @@ class StratumProxyService(GenericService):
         # if self._f.client is None or not self._f.client.connected:
         if f.client is None or not f.client.connected:
             yield f.on_connect
-        user_ident = self.connection_ref().get_ident()
-        if user_ident in self.unsubscribed_users:
-            # d = defer.Deferred()
-            # d.callback()
-            self.new_subscribe(f)
-
+        # user_ident = self.connection_ref().get_ident()
+        # if user_ident in self.unsubscribed_users:
+        #     # d = defer.Deferred()
+        #     # d.callback()
+        #     self.new_subscribe(f)
+        log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
+        log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
+        log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
+        log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
+        log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
+        if self.connection_ref().get_ident() in self._cp.new_users:
+            subs_keys = self._cp.new_users[self.connection_ref().get_ident()]
+            log.info(subs_keys)
+            subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription, subs_keys[0])[0]
+            log.info(subs1)
+            subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription, subs_keys[1])[0]
+            log.info(subs2)
+            self._cp.new_users.pop(self.connection_ref().get_ident())
         result = (yield f.rpc('mining.authorize', [pool_worker['username'], pool_worker['password']]))
+        if self.connection_ref().get_ident() in self._cp.new_users:
+            f.difficulty_subscription.on_new_difficulty(f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
+            # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
+            f.job_registry.set_difficulty(f.difficulty_subscription.difficulty)
         log.info(result)
         defer.returnValue(result)
 
@@ -265,8 +309,8 @@ class StratumProxyService(GenericService):
         # Remove extranonce from registry when client disconnect
         self.connection_ref().on_disconnect.addCallback(self._drop_tail, tail=tail, f=f)
 
-        subs1 = Pubsub.subscribe(self.connection_ref(), f.difficulty_subscription)[0]
-        subs2 = Pubsub.subscribe(self.connection_ref(), f.mining_subscription)[0]
+        subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription)[0]
+        subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription)[0]
         defer.returnValue(((subs1, subs2),) + (f.extranonce1+tail, extranonce2_size))
 
     @defer.inlineCallbacks
@@ -287,11 +331,13 @@ class StratumProxyService(GenericService):
         self.unsubscribed_users[self.connection_ref().get_ident()] = False
         log.info(self.unsubscribed_users)
         log.info('subscribe end')
-        if port > 10000:
+        if port > 4000:
             for conn in self._cp._connections:
                 f = self._cp._connections[conn]
                 log.info('ffffffffffff')
                 log.info(f)
+                log.info(f.extranonce1)
+                log.info(f.extranonce2_size)
                 log.info('ffffffffffff')
                 # if self._f.client == None or not self._f.client.connected:
                 if f.client == None or not f.client.connected:
@@ -314,12 +360,19 @@ class StratumProxyService(GenericService):
                 # Remove extranonce from registry when client disconnect
                 self.connection_ref().on_disconnect.addCallback(self._drop_tail, tail=tail, f=f)
 
-                subs1 = Pubsub.subscribe(self.connection_ref(), f.difficulty_subscription)[0]
+                subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription)[0]
                 log.info(subs1)
-                subs2 = Pubsub.subscribe(self.connection_ref(), f.mining_subscription)[0]
+                subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription)[0]
                 log.info(subs2)
-                log.info(((subs1, subs2),) + (f.extranonce1+tail, extranonce2_size))
-                defer.returnValue(((subs1, subs2),) + (f.extranonce1+tail, extranonce2_size))
+                self._cp.new_users[self.connection_ref().get_ident()] = (subs1[1], subs2[1])
+                log.info(self._cp.new_users[self.connection_ref().get_ident()])
+                log.info(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
+                # defer.returnValue(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
+                # f.pubsub.unsubscribe(self.connection_ref())
+                f.pubsub.unsubscribe(self.connection_ref(), subscription=f.difficulty_subscription, key=subs1[1])
+                f.pubsub.unsubscribe(self.connection_ref(), subscription=f.mining_subscription, key=subs2[1])
+                defer.returnValue(((subs1, subs2),) + ('', extranonce2_size))
+                # defer.returnValue(((subs1, subs2),) + (f.extranonce1+tail, 4))
         else:
             f = self._cp.get_connection(ip=ip, port=port)
 
@@ -344,8 +397,8 @@ class StratumProxyService(GenericService):
             # Remove extranonce from registry when client disconnect
             self.connection_ref().on_disconnect.addCallback(self._drop_tail, tail=tail, f=f)
 
-            subs1 = Pubsub.subscribe(self.connection_ref(), f.difficulty_subscription)[0]
-            subs2 = Pubsub.subscribe(self.connection_ref(), f.mining_subscription())[0]
+            subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription)[0]
+            subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription())[0]
             defer.returnValue(((subs1, subs2),) + (f.extranonce1+tail, extranonce2_size))
         # subs1 = Pubsub.subscribe(self.connection_ref(), DifficultySubscription())[0]
         # subs2 = Pubsub.subscribe(self.connection_ref(), MiningSubscription())[0]
@@ -387,6 +440,9 @@ class StratumProxyService(GenericService):
         log.info(job_id)
         log.info('new_job_id')
         # job_id = int(job_id)
+        log.info(('worker_name', 'job_id', 'extranonce2', 'ntime', 'nonce'))
+        log.info((worker_name, job_id, extranonce2, ntime, nonce))
+        log.info(args)
         log.info('current_pool')
         log.info(f)
         if f is None:
@@ -405,12 +461,15 @@ class StratumProxyService(GenericService):
         if tail == None:
             raise SubmitException("Connection is not subscribed")
 
-        start = time.time()
         # worker_name = self.userMapper.getWorkerName(worker_name, self._f.main_host[0] + ':' + str(self._f.main_host[1]))
         # pool = database.get_pool(worker_name, job_id, job=True)
         # if not pool:
         #     defer.returnValue(False)
-
+        log.info('extranonce2_size')
+        log.info(f.extranonce2_size)
+        log.info('extranonce1')
+        log.info(f.extranonce1)
+        start = time.time()
         try:
             result = (yield f.rpc('mining.submit', [worker_name, job_id, tail+extranonce2, ntime, nonce]))
         except RemoteServiceException as exc:

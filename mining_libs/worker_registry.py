@@ -71,6 +71,9 @@ class WorkerRegistry(object):
 
     def authorize(self, proxyusername, password):
         log.info(proxyusername + ' ' + password)
+        log.info('workers_authorize')
+        log.info('workers_authorize')
+        log.info('workers_authorize')
         if proxyusername in self.authorized:
             return True
 

@@ -82,7 +82,6 @@ class Job(object):
 class JobRegistry(object):   
     def __init__(self, f, cmd, no_midstate, real_target, use_old_target=False):
         self.f = f
-        self.cp = f
         self.cmd = cmd # execute this command on new block
         self.no_midstate = no_midstate # Indicates if calculate midstate for getwork
         self.real_target = real_target # Indicates if real stratum target will be propagated to miners
@@ -106,12 +105,26 @@ class JobRegistry(object):
         self.on_block = defer.Deferred()
 
     def execute_cmd(self, prevhash):
+        log.info('execute_cmd')
+        log.info(prevhash)
+        log.info(self.cmd)
         return subprocess.Popen(self.cmd.replace('%s', prevhash), shell=True)
 
     def set_extranonce(self, extranonce1, extranonce2_size):
+        log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
+        log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
+        log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
+        log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
+        log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
+        log.info(extranonce1)
+        log.info(extranonce2_size)
         self.extranonce2_size = extranonce2_size
+        self.f.extranonce2_size = extranonce2_size
         self.extranonce1_bin = binascii.unhexlify(extranonce1)
-        
+        self.f.extranonce1 = self.extranonce1
+        log.info(self.f.extranonce1)
+        log.info(self.f.extranonce2_size)
+
     def set_difficulty(self, new_difficulty):
         dif1 = 0x00000000ffff0000000000000000000000000000000000000000000000000000 
         self.target = int(dif1 / new_difficulty)
@@ -140,7 +153,7 @@ class JobRegistry(object):
 
         # This is probably more common situation, but it is perfectly
         # safe to add whitespaces
-        return '\x00' * missing_len + extranonce2_bin 
+        return '\x00' * missing_len + extranonce2_bin
     
     def add_template(self, template, clean_jobs):
         if clean_jobs:
@@ -149,7 +162,16 @@ class JobRegistry(object):
             
         self.jobs.append(template)
         self.last_job = template
-                
+
+        log.info('template')
+        log.info('template')
+        log.info('template')
+        log.info(template.job_id)
+        log.info(self.f.main_host)
+        log.info('template')
+        log.info('template')
+        log.info('template')
+
         if clean_jobs:
             # Force miners to reload jobs
             on_block = self.on_block
@@ -221,7 +243,11 @@ class JobRegistry(object):
             
         return result            
         
-    def submit(self, header, worker_name):            
+    def submit(self, header, worker_name):
+        log.info('jobregistry_submit')
+        log.info('jobregistry_submit')
+        log.info(self.f.main_host)
+        log.info('jobregistry_submit')
         # Drop unused padding
         header = header[:160]
 
@@ -255,4 +281,4 @@ class JobRegistry(object):
         nonce = header[noncepos:noncepos+8]
             
         # 5. Submit share to the pool
-        return self.cp.gwc(worker_name, job.job_id).rpc('mining.submit', [worker_name, job.job_id, extranonce2_hex, ntime, nonce])
+        return self.f.rpc('mining.submit', [worker_name, job.job_id, extranonce2_hex, ntime, nonce])

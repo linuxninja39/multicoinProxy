@@ -1,3 +1,4 @@
+import json
 from twisted.internet import reactor
 
 from stratum.event_handler import GenericEventHandler
@@ -68,7 +69,7 @@ class ClientMiningService(GenericEventHandler):
         # log.warning('Current method %s' % method )
         if method == 'mining.notify':
             '''Proxy just received information about new mining job'''
-
+            log.info('Proxy just received information about new mining job')
             (job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs) = params[:9]
             #print len(str(params)), len(merkle_branch)
 
@@ -96,15 +97,28 @@ class ClientMiningService(GenericEventHandler):
             # Broadcast to Stratum clients
             # stratum_listener.MiningSubscription.on_template(
             # Adding connection_id to job_id
+            log.info(('job_id', 'prevhash', 'coinb1', 'coinb2', 'merkle_branch', 'version', 'nbits', 'ntime'))
+            log.info((job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime))
+            log.info(f.job_registry.extranonce1_bin)
+            log.info(f.extranonce1)
+            log.info(f.conn_name)
+            dcoinb1 = json.dumps(coinb1)
+            ncoinb1 = json.loads(dcoinb1[:-1] + str(f.extranonce1) + dcoinb1[-1:])
+            djob_id = json.dumps(job_id)
+            njob_id = json.loads(djob_id[:-1] + '_' + str(f.conn_name) + djob_id[-1:])
             f.mining_subscription.on_template(
-                            job_id + '_' + str(f.conn_name), prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
+                            # job_id + '_' + str(f.conn_name), prevhash, str(coinb1) + str(f.job_registry.extranonce1_bin), coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
+                            njob_id, prevhash, ncoinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
 
             # Broadcast to getwork clients
             job = Job.build_from_broadcast(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime)
+            log.info(('job_id', 'prevhash', 'coinb1', 'coinb2', 'merkle_branch', 'version', 'nbits', 'ntime'))
+            log.info((job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime))
             log.info("%s:%d - New job %s for prevhash %s, clean_jobs=%s" % \
                  (f.main_host[0], f.main_host[1], job.job_id, utils.format_hash(job.prevhash), clean_jobs))
 
             f.job_registry.add_template(job, clean_jobs)
+            log.info(f.job_registry.jobs)
             # self.job_registry.add_template(job, clean_jobs)
 
         elif method == 'mining.set_difficulty':

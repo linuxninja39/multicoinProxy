@@ -40,10 +40,11 @@ from mining_libs.connection_pool import ConnectionPool
 import stratum.logger
 
 
-def parse_args():
+def parse_args():  # https://www.btcguild.com/new_protocol.php
     parser = argparse.ArgumentParser(
         description='This proxy allows you to run getwork-based miners against Stratum mining pool.')
-    parser.add_argument('-o', '--host', dest='host', type=str, default='mint.bitminter.com',
+    # parser.add_argument('-o', '--host', dest='host', type=str, default='mint.bitminter.com',
+    parser.add_argument('-o', '--host', dest='host', type=str, default='stratum.bitcoin.cz',
                         help='Hostname of Stratum mining pool')
     parser.add_argument('-p', '--port', dest='port', type=int, default=3333, help='Port of Stratum mining pool')
     # parser.add_argument('-o', '--host', dest='host', type=str, default='localhost', help='Hostname of Stratum mining pool')
@@ -105,35 +106,74 @@ if __name__ == '__main__':
 log = stratum.logger.get_logger('proxy')
 
 
-def on_shutdown(f):
+def on_shutdown(cp):
     '''Clean environment properly'''
     log.info("Shutting down proxy...")
-    f.is_reconnecting = False  # Don't let stratum factory to reconnect again
+    for conn_name in cp._connections:
+        f = cp._connections[conn_name]
+        f.is_reconnecting = False  # Don't let stratum factory to reconnect again
 
+
+# @defer.inlineCallbacks
+# def on_connect(f, workers, job_registry):
+#     '''Callback when proxy get connected to the pool'''
+#     log.info("Connected to Stratum pool at %s:%d" % f.main_host)
+#     #reactor.callLater(30, f.client.transport.loseConnection)
+#
+#     # Hook to on_connect again
+#     f.on_connect.addCallback(on_connect, workers, job_registry)
+#
+#     # Every worker have to re-autorize
+#     workers.clear_authorizations()
+#
+#     if args.custom_user:
+#         log.warning("Authorizing custom user %s, password %s" % (args.custom_user, args.custom_password))
+#         workers.authorize(args.custom_user, args.custom_password)
+#
+#     # Subscribe for receiving jobs
+#     log.info("Subscribing for mining jobs")
+#     (_, extranonce1, extranonce2_size) = (yield f.rpc('mining.subscribe', []))[:3]
+#     log.info (extranonce1)
+#     log.info (extranonce2_size)
+#     # job_registry.set_extranonce(extranonce1, extranonce2_size)
+#     # stratum_listener.StratumProxyService._set_extranonce(extranonce1, extranonce2_size)
+#     f.job_registry.set_extranonce(extranonce1, extranonce2_size)
+#     stratum_listener.StratumProxyService._set_extranonce(f, extranonce1, extranonce2_size)
+#
+#     defer.returnValue(f)
 
 @defer.inlineCallbacks
-def on_connect(f, workers, job_registry):
+def new_on_connect(f):
     '''Callback when proxy get connected to the pool'''
     log.info("Connected to Stratum pool at %s:%d" % f.main_host)
     #reactor.callLater(30, f.client.transport.loseConnection)
 
     # Hook to on_connect again
-    f.on_connect.addCallback(on_connect, workers, job_registry)
+    f.on_connect.addCallback(new_on_connect)
 
     # Every worker have to re-autorize
-    workers.clear_authorizations()
+    f.workers.clear_authorizations()
 
     if args.custom_user:
         log.warning("Authorizing custom user %s, password %s" % (args.custom_user, args.custom_password))
-        workers.authorize(args.custom_user, args.custom_password)
+        f.workers.authorize(args.custom_user, args.custom_password)
 
     # Subscribe for receiving jobs
-    log.info("Subscribing for mining jobs")
+    log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
+    log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
+    log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
+    log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
     (_, extranonce1, extranonce2_size) = (yield f.rpc('mining.subscribe', []))[:3]
+    log.info(extranonce1)
+    log.info(extranonce2_size)
     # job_registry.set_extranonce(extranonce1, extranonce2_size)
     # stratum_listener.StratumProxyService._set_extranonce(extranonce1, extranonce2_size)
     f.job_registry.set_extranonce(extranonce1, extranonce2_size)
+    log.info(f.extranonce1)
+    log.info(f.extranonce2_size)
     stratum_listener.StratumProxyService._set_extranonce(f, extranonce1, extranonce2_size)
+    log.info(f.extranonce1)
+    log.info(f.extranonce2_size)
 
     defer.returnValue(f)
 
@@ -149,6 +189,21 @@ def on_disconnect(f, workers, job_registry):
     # Reject miners because we don't give a *job :-)
     workers.clear_authorizations()
 
+    return f
+
+
+@defer.inlineCallbacks
+def new_on_disconnect(f):
+    '''Callback when proxy get disconnected from the pool'''
+    log.info("Disconnected from Stratum pool at %s:%d" % f.main_host)
+    f.on_disconnect.addCallback(new_on_disconnect)
+
+    # stratum_listener.MiningSubscription.disconnect_all()
+    f.mining_subscription.disconnect_all()
+
+    # Reject miners because we don't give a *job :-)
+    f.workers.clear_authorizations()
+    f.pool.close_connection(f.conn_name)
     return f
 
 
@@ -366,8 +421,10 @@ def main(args):
     client_service.ClientMiningService.set_cp(cp)
     # Connect to Stratum pool
     log.info(args.host + ':' + str(args.port))
-    f = cp.get_connection(host=args.host, port=args.port)
-    log.info(f)
+    # cp.init_all_pools()
+    cp.init_one_pool()
+    # f = cp.get_connection(host=args.host, port=args.port)
+    # log.info(f)
     # f = SocketTransportClientFactory(args.host, args.port,
     #                                  debug=args.verbose, proxy=proxy,
     #                                  event_handler=client_service.ClientMiningService)
@@ -397,45 +454,49 @@ def main(args):
     #     real_target=args.real_target,
     #     use_old_target=args.old_target
     # )
-    job_registry = f.job_registry
-    cp.job_registry = job_registry
-    client_service.ClientMiningService.job_registry = job_registry
-    client_service.ClientMiningService.reset_timeout()
+    # job_registry = f.job_registry
+    # cp.job_registry = job_registry
+    # client_service.ClientMiningService.job_registry = job_registry
+    # client_service.ClientMiningService.reset_timeout()
 
-    workers = worker_registry.WorkerRegistry(f)
-    f.on_connect.addCallback(on_connect, workers, job_registry)
-    f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
-    workers.set_host(args.host, args.port)
+    # workers = worker_registry.WorkerRegistry(cp)
+
+    # f.on_connect.addCallback(on_connect, workers, job_registry)
+    # f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
+    # cp.on_connect_callback = new_on_connect
+    # cp.on_disconnect_callback = new_on_disconnect
+    # workers.set_host(args.host, args.port)
 
     if args.test:
         f.on_connect.addCallback(test_launcher, job_registry)
 
     # Cleanup properly on shutdown
-    reactor.addSystemEventTrigger('before', 'shutdown', on_shutdown, f)
+    # reactor.addSystemEventTrigger('before', 'shutdown', on_shutdown, f)
+    reactor.addSystemEventTrigger('before', 'shutdown', on_shutdown, cp=cp)
 
     # Block until proxy connect to the pool
-    yield f.on_connect
+    # yield f.on_connect  # Temporarily commented out
 
-    # Setup getwork listener
-    getwork_lstnr = None
-    if args.getwork_port > 0:
-        getwork_lstnr = getwork_listener.Root(job_registry, workers,
-                                              stratum_host=args.stratum_host, stratum_port=args.stratum_port,
-                                              custom_lp=args.custom_lp, custom_stratum=args.custom_stratum,
-                                              custom_user=args.custom_user, custom_password=args.custom_password)
-        getwork_lstnr.set_host(args.host + ':' + str(args.port))
-        conn = reactor.listenTCP(args.getwork_port, Site(getwork_lstnr),
-                                 interface=args.getwork_host)
-
-        try:
-            conn.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)  # Enable keepalive packets
-            conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 60)  # Seconds before sending keepalive probes
-            conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL,
-                                   1)  # Interval in seconds between keepalive probes
-            conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT,
-                                   5)  # Failed keepalive probles before declaring other end dead
-        except:
-            pass  # Some socket features are not available on all platforms (you can guess which one)
+    # # Setup getwork listener
+    # getwork_lstnr = None
+    # if args.getwork_port > 0:
+    #     getwork_lstnr = getwork_listener.Root(job_registry, workers,
+    #                                           stratum_host=args.stratum_host, stratum_port=args.stratum_port,
+    #                                           custom_lp=args.custom_lp, custom_stratum=args.custom_stratum,
+    #                                           custom_user=args.custom_user, custom_password=args.custom_password)
+    #     getwork_lstnr.set_host(args.host + ':' + str(args.port))
+    #     conn = reactor.listenTCP(args.getwork_port, Site(getwork_lstnr),
+    #                              interface=args.getwork_host)
+    #
+    #     try:
+    #         conn.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)  # Enable keepalive packets
+    #         conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 60)  # Seconds before sending keepalive probes
+    #         conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL,
+    #                                1)  # Interval in seconds between keepalive probes
+    #         conn.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT,
+    #                                5)  # Failed keepalive probles before declaring other end dead
+    #     except:
+    #         pass  # Some socket features are not available on all platforms (you can guess which one)
 
     # Setup stratum listener
     if args.stratum_port > 0:
@@ -458,8 +519,8 @@ def main(args):
         log.warning("-----------------------Proxy Switching Scheduled-----------------------")
         log.warning("----------------Switch Periodicity is set to %d seconds----------------" % args.switch_periodicity)
         log.warning("-----------------------------------------------------------------------")
-        reactor.callLater(args.switch_periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry,
-                          host=args.host, periodicity=args.switch_periodicity, getwork=getwork_lstnr)
+        # reactor.callLater(args.switch_periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry,
+        #                   host=args.host, periodicity=args.switch_periodicity, getwork=getwork_lstnr)
 
 
 if __name__ == '__main__':
