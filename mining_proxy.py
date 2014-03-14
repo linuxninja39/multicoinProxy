@@ -38,7 +38,7 @@ from mining_libs import utils
 from mining_libs.connection_pool import ConnectionPool
 
 import stratum.logger
-
+from mining_libs import database
 
 def parse_args():  # https://www.btcguild.com/new_protocol.php
     parser = argparse.ArgumentParser(
@@ -422,6 +422,7 @@ def main(args):
     # Connect to Stratum pool
     log.info(args.host + ':' + str(args.port))
     # cp.init_all_pools()
+    database.deactivate_all_users()
     cp.init_one_pool()
     # f = cp.get_connection(host=args.host, port=args.port)
     # log.info(f)

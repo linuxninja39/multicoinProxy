@@ -102,8 +102,10 @@ class ClientMiningService(GenericEventHandler):
             log.info(f.job_registry.extranonce1_bin)
             log.info(f.extranonce1)
             log.info(f.conn_name)
+            (tail, extranonce2_size) = stratum_listener.StratumProxyService._get_unused_tail(f)
             dcoinb1 = json.dumps(coinb1)
             ncoinb1 = json.loads(dcoinb1[:-1] + str(f.extranonce1) + dcoinb1[-1:])
+            # dcoinb1 = coinb1
             djob_id = json.dumps(job_id)
             njob_id = json.loads(djob_id[:-1] + '_' + str(f.conn_name) + djob_id[-1:])
             f.mining_subscription.on_template(

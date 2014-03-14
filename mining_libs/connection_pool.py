@@ -51,7 +51,6 @@ def on_disconnect(f, workers, job_registry):
 
     # stratum_listener.MiningSubscription.disconnect_all()
     f.mining_subscription.disconnect_all()
-
     # Reject miners because we don't give a *job :-)
     workers.clear_authorizations()
 
@@ -65,6 +64,7 @@ def new_on_disconnect(f):
 
     # stratum_listener.MiningSubscription.disconnect_all()
     f.mining_subscription.disconnect_all()
+    database.deactivate_all_users_on_pool_start(f.conn_name)
 
     # Reject miners because we don't give a *job :-)
     f.workers.clear_authorizations()
@@ -87,6 +87,7 @@ class ConnectionPool():
     new_users = {}
     on_connect_callback = None
     on_disconnect_callback = None
+    users = {}
 
     def __init__(self, debug,
                  # proxy,
@@ -113,7 +114,9 @@ class ConnectionPool():
                 log.info(ip)
                 log.info(conn_name)
             if conn_name is None:
-                conn_name = database.get_pool_id_by_host_and_port(host, port)
+                pool = database.get_pool_id_by_host_and_port(host, port)
+                if pool:
+                    conn_name = pool['id']
 
         if conn_name in self._connections.keys():
             return self._connections[conn_name]
@@ -149,8 +152,9 @@ class ConnectionPool():
         self._connections[conn_name].workers.set_host(host, port)
         self._connections[conn_name].pool = self
         self._connections[conn_name].on_connect.addCallback(new_on_connect)
+        # new_on_connect(self._connections[conn_name])
         self._connections[conn_name].on_disconnect.addCallback(new_on_disconnect)
-
+        database.deactivate_all_users_on_pool_start(conn_name)
         return self._connections[conn_name]
 
     def close_conn(self, conn_name):

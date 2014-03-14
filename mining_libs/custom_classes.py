@@ -32,6 +32,7 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
     conn_name = None
     connected = False
     pool = None  # ConnectionPool
+    users = {}
 
     def __init__(self, host, port, allow_trusted=True, allow_untrusted=False, debug=False, signing_key=None,
                  signing_id=None, is_reconnecting=True, proxy=None, event_handler=client_service.ClientMiningService, conn_name=None):
@@ -60,6 +61,7 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
         self.connected = False
         self.pubsub = Pubsub()
         self.pubsub.f = self
+        self.users = {}
 
     def rpc(self, method, params, *args, **kwargs):
         if not self.client:

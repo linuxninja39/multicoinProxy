@@ -254,6 +254,7 @@ CREATE TABLE `WorkerService` (
   `workerId` int(10) unsigned NOT NULL,
   `serviceId` int(10) unsigned NOT NULL,
   `active` tinyint(4) NOT NULL DEFAULT '0',
+  `accepted` int(10) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `workerId` (`workerId`,`serviceId`),
   KEY `serviceId` (`serviceId`),

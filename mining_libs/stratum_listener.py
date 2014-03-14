@@ -219,7 +219,10 @@ class StratumProxyService(GenericService):
     def authorize(self, proxyusername, password, *args):
         # log.info(worker_name + ' ' + worker_password)
         # worker = self.userMapper.getUser(worker_name, worker_password, self._f.main_host[0] + ':' + str(self._f.main_host[1]))
-        pool_worker = database.get_best_pool_and_worker_by_proxy_user(proxyusername, password)
+        if self.connection_ref().get_ident() in self._cp.new_users:
+            pool_worker = database.get_best_pool_and_worker_by_proxy_user(proxyusername, password)
+        else:
+            pool_worker = database.get_current_pool_and_worker_by_proxy_user(proxyusername, password)
         # worker = database.get_worker(self._f.main_host[0], self._f.main_host[1], worker_name, worker_password)
         log.info('authorize start')
         log.info(self.connection_ref().get_ident())
@@ -255,6 +258,9 @@ class StratumProxyService(GenericService):
             subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription, subs_keys[1])[0]
             log.info(subs2)
             self._cp.new_users.pop(self.connection_ref().get_ident())
+            database.activate_user_worker(pool_worker['username'], pool_worker['password'], f.conn_name)
+            f.users[proxyusername] = {proxyusername, password, pool_worker['username'], pool_worker['password'], f.conn_name}
+            f.pool.users[proxyusername] = {proxyusername, password, pool_worker['username'], pool_worker['password'], f.conn_name}
         result = (yield f.rpc('mining.authorize', [pool_worker['username'], pool_worker['password']]))
         if self.connection_ref().get_ident() in self._cp.new_users:
             f.difficulty_subscription.on_new_difficulty(f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
@@ -367,11 +373,13 @@ class StratumProxyService(GenericService):
                 self._cp.new_users[self.connection_ref().get_ident()] = (subs1[1], subs2[1])
                 log.info(self._cp.new_users[self.connection_ref().get_ident()])
                 log.info(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
+                log.info('new users tail: ' + str(tail))
                 # defer.returnValue(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
                 # f.pubsub.unsubscribe(self.connection_ref())
                 f.pubsub.unsubscribe(self.connection_ref(), subscription=f.difficulty_subscription, key=subs1[1])
                 f.pubsub.unsubscribe(self.connection_ref(), subscription=f.mining_subscription, key=subs2[1])
-                defer.returnValue(((subs1, subs2),) + ('', extranonce2_size))
+                defer.returnValue(((subs1, subs2),) + (tail, extranonce2_size))
+                # defer.returnValue(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
                 # defer.returnValue(((subs1, subs2),) + (f.extranonce1+tail, 4))
         else:
             f = self._cp.get_connection(ip=ip, port=port)
@@ -399,6 +407,11 @@ class StratumProxyService(GenericService):
 
             subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription)[0]
             subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription())[0]
+            log.info('Subscribing to pool')
+            log.info('Subscribing to pool')
+            log.info('Subscribing to pool')
+            log.info('Subscribing to pool')
+            log.info(((subs1, subs2),) + (f.extranonce1+tail, extranonce2_size))
             defer.returnValue(((subs1, subs2),) + (f.extranonce1+tail, extranonce2_size))
         # subs1 = Pubsub.subscribe(self.connection_ref(), DifficultySubscription())[0]
         # subs2 = Pubsub.subscribe(self.connection_ref(), MiningSubscription())[0]
@@ -471,6 +484,7 @@ class StratumProxyService(GenericService):
         log.info(f.extranonce1)
         start = time.time()
         try:
+            log.info('submitting: ' + str(self.connection_ref().get_ident()) + '  --  ' + str(tail))
             result = (yield f.rpc('mining.submit', [worker_name, job_id, tail+extranonce2, ntime, nonce]))
         except RemoteServiceException as exc:
             response_time = (time.time() - start) * 1000
@@ -478,6 +492,7 @@ class StratumProxyService(GenericService):
             raise SubmitException(*exc.args)
 
         response_time = (time.time() - start) * 1000
+        database.increase_accepted_shares(worker_name, f.conn_name)
         log.info("[%dms] Share from '%s' on %s%d accepted, diff %d" % (response_time, worker_name, f.main_host[0], f.main_host[1], f.difficulty_subscription.difficulty))
         defer.returnValue(result)
 
