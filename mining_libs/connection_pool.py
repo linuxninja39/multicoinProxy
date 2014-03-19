@@ -29,6 +29,16 @@ def new_on_connect(f):
     log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
     log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
     log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
+    # for i in range(1, 10):
+    #     log.info('subscribing')
+    #     log.info('subscribing')
+    #     log.info('subscribing')
+    #     (_, extranonce1, extranonce2_size) = (yield f.rpc('mining.subscribe', []))[:3]
+        # log.info('extranonce1: ' + str(extranonce1))
+        # log.info('extranonce2_size: ' + str(extranonce2_size))
+        # log.info('subscribing')
+        # log.info('subscribing')
+        # log.info('subscribing')
     (_, extranonce1, extranonce2_size) = (yield f.rpc('mining.subscribe', []))[:3]
     log.info(extranonce1)
     log.info(extranonce2_size)
@@ -88,6 +98,7 @@ class ConnectionPool():
     on_connect_callback = None
     on_disconnect_callback = None
     users = {}
+    usernames = {}
 
     def __init__(self, debug,
                  # proxy,
@@ -125,6 +136,29 @@ class ConnectionPool():
                 host=host,
                 port=port,
             )
+
+    def has_connection(
+            self,
+            conn_name=None,
+            host=None,
+            port=None,
+            ip=None
+    ):
+        log.info("getConnection")
+        if conn_name is None:
+            if ip:
+                conn_name = self.get_pool_by_ip(ip)
+                log.info(ip)
+                log.info(conn_name)
+            if conn_name is None:
+                pool = database.get_pool_id_by_host_and_port(host, port)
+                if pool:
+                    conn_name = pool['id']
+
+        if conn_name in self._connections.keys():
+            return self._connections[conn_name]
+        else:
+            return None
 
     def _new_connection(
             self,

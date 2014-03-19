@@ -62,6 +62,7 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
         self.pubsub = Pubsub()
         self.pubsub.f = self
         self.users = {}
+        self.usernames = {}
 
     def rpc(self, method, params, *args, **kwargs):
         if not self.client:

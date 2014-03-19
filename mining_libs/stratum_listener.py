@@ -257,10 +257,13 @@ class StratumProxyService(GenericService):
             log.info(subs1)
             subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription, subs_keys[1])[0]
             log.info(subs2)
+            tail = subs_keys[2]
             self._cp.new_users.pop(self.connection_ref().get_ident())
             database.activate_user_worker(pool_worker['username'], pool_worker['password'], f.conn_name)
-            f.users[proxyusername] = {proxyusername, password, pool_worker['username'], pool_worker['password'], f.conn_name}
-            f.pool.users[proxyusername] = {proxyusername, password, pool_worker['username'], pool_worker['password'], f.conn_name}
+            f.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1]}
+            f.usernames[proxyusername] = f.users[self.connection_ref().get_ident()]
+            f.pool.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1]}
+            f.pool.usernames[proxyusername] = f.pool.users[self.connection_ref().get_ident()]
         result = (yield f.rpc('mining.authorize', [pool_worker['username'], pool_worker['password']]))
         if self.connection_ref().get_ident() in self._cp.new_users:
             f.difficulty_subscription.on_new_difficulty(f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
@@ -370,7 +373,7 @@ class StratumProxyService(GenericService):
                 log.info(subs1)
                 subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription)[0]
                 log.info(subs2)
-                self._cp.new_users[self.connection_ref().get_ident()] = (subs1[1], subs2[1])
+                self._cp.new_users[self.connection_ref().get_ident()] = (subs1[1], subs2[1], tail)
                 log.info(self._cp.new_users[self.connection_ref().get_ident()])
                 log.info(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
                 log.info('new users tail: ' + str(tail))
@@ -379,8 +382,7 @@ class StratumProxyService(GenericService):
                 f.pubsub.unsubscribe(self.connection_ref(), subscription=f.difficulty_subscription, key=subs1[1])
                 f.pubsub.unsubscribe(self.connection_ref(), subscription=f.mining_subscription, key=subs2[1])
                 defer.returnValue(((subs1, subs2),) + (tail, extranonce2_size))
-                # defer.returnValue(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
-                # defer.returnValue(((subs1, subs2),) + (f.extranonce1+tail, 4))
+                # defer.returnValue(((subs1, subs2),) + (tail, 4))
         else:
             f = self._cp.get_connection(ip=ip, port=port)
 
@@ -458,11 +460,14 @@ class StratumProxyService(GenericService):
         log.info(args)
         log.info('current_pool')
         log.info(f)
+        log.info(f.conn_name)
         if f is None:
             defer.returnValue(False)
+        proxy_username = worker_name
         worker = database.get_worker(host=f.main_host[0], port=f.main_host[1], username=worker_name)
         if worker:
             worker_name = worker['remoteUsername']
+            log.info(worker)
         else:
             defer.returnValue(False)
         log.info(worker_name)
@@ -470,7 +475,14 @@ class StratumProxyService(GenericService):
             raise SubmitException("Upstream not connected")
 
         session = self.connection_ref().get_session()
-        tail = session.get('tail')
+        try:
+            log.info(self.connection_ref().get_ident())
+            log.info(self._cp.users)
+            log.info(self._cp.users[self.connection_ref().get_ident()])
+            tail = self._cp.users[self.connection_ref().get_ident()]['tail']
+            log.info(tail)
+        except KeyError:
+            tail = session.get('tail')
         if tail == None:
             raise SubmitException("Connection is not subscribed")
 

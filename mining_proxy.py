@@ -261,109 +261,227 @@ def test():
     reactor.callLater(5, test)
 
 
-def switch_proxy(f, periodicity, workers, job_registry, host, getwork):
-    # TODO Add Getting 'the best' coin
-    if host == 'mint.bitminter.com':
-        host = 'stratum.bitcoin.cz'
-    else:
-        host = 'mint.bitminter.com'
-    port = 3333
-    log.warning("-----------------------------------------------------------------------")
-    log.warning("--------------------------Switching To %s:%d---------------------------" % (host, port))
-    log.warning("-----------------------------------------------------------------------")
+# def _oldswitch_proxy(f, periodicity, workers, job_registry, host, getwork):
+#     # TODO Add Getting 'the best' coin
+#     if host == 'mint.bitminter.com':
+#         host = 'stratum.bitcoin.cz'
+#     else:
+#         host = 'mint.bitminter.com'
+#     port = 3333
+#     log.warning("-----------------------------------------------------------------------")
+#     log.warning("--------------------------Switching To %s:%d---------------------------" % (host, port))
+#     log.warning("-----------------------------------------------------------------------")
+#
+#     # job_registry = jobs.JobRegistry(self._f, cmd=jobs.JobRegistry.cmd, scrypt_target=jobs.JobRegistry.scrypt_target,
+#     #                no_midstate=jobs.JobRegistry.no_midstate, real_target=jobs.JobRegistry.real_target, use_old_target=jobs.JobRegistry.old_target)
+#
+#     # job_registry = jobs.JobRegistry
+#     # client_service.ClientMiningService.job_registry = job_registry
+#     # client_service.ClientMiningService.reset_timeout()
+#     #
+#     # f = SocketTransportClientFactory('localhost', 50014,
+#     #         debug=self._f.debug, proxy=self._f.proxy,
+#     #         event_handler=client_service.ClientMiningService)
+#     # workers = worker_registry.WorkerRegistry(f)
+#     # log.info('Switch coin middle')
+#     # self._f = f
+#     # self._f.on_connect(workers, job_registry)
+#     # log.info('-------------------------------')
+#     # log.info('Reconnecting to localhost:50014')
+#     # log.info('-------------------------------')
+#     # self._f.reconnect('localhost', 50014, 60)
+#     # reactor.listenMulticast(3333, multicast_responder.MulticastResponder(('localhost', 50014), 3333, 8332), listenMultiple=True)
+#
+#
+#     # Setup multicast responder
+#     # host = '127.0.0.1'
+#     # port = 50014
+#     # host = 'mint.bitminter.com'
+#     # args.stratum_host = '0.0.0.0'
+#     # args.stratum_port = 3333
+#     # args.getwork_host = '0.0.0.0'
+#     # args.getwork_port = 8332
+#     #
+#     # log.warning("Trying to connect to Stratum pool at %s:%d" % (host, port))
+#     f.main_host = (host, port)
+#     # f.port = port
+#     # f.connect()
+#     f.reconnect(host=host, port=port)
+#     workers.set_host(host + ':' + str(port))
+#     # f.retry()
+#     # reactor.connectTCP(host, port, f)
+#     # log.warning(workers.authorized)
+#     # log.warning(workers.unauthorized)
+#     # workers.clear_authorizations()
+#     # f.on_connect.addCallback(on_connect, workers, job_registry)
+#     # f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
+#     # f = SocketTransportClientFactory(args.host, args.port,
+#     #            debug=args.verbose, proxy=args.proxy,
+#     #            event_handler=client_service.ClientMiningSezrvice)
+#     # f = SocketTransportClientFactory('127.0.0.1', 50014,
+#     #            debug=args.verbose, proxy=args.proxy,
+#     #            event_handler=client_service.ClientMiningService)
+#     #
+#     # job_registry = jobs.JobRegistry(
+#     #         f,
+#     #         cmd=args.blocknotify_cmd,
+#     #         no_midstate=args.no_midstate,
+#     #         real_target=args.real_target,
+#     #         use_old_target=args.old_target
+#     #         )
+#     # client_service.ClientMiningService.job_registry = job_registry
+#     # client_service.ClientMiningService.reset_timeout()
+#     #
+#     # workers = worker_registry.WorkerRegistry(f)
+#     # f.on_connect.addCallback(on_connect, workers, job_registry)
+#     # f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
+#     #
+#     # if args.test:
+#     #     f.on_connect.addCallback(test_launcher, job_registry)
+#     #
+#     # # Cleanup properly on shutdown
+#     # reactor.addSystemEventTrigger('before', 'shutdown', on_shutdown, f)
+#     #
+#     # # Block until proxy connect to the pool
+#     # yield f.on_connect
+#     #
+#     # # Setup stratum listener
+#     # if args.stratum_port > 0:
+#     #     stratum_listener.StratumProxyService._set_upstream_factory(f)
+#     #     reactor.listenTCP(args.stratum_port, SocketTransportFactory(debug=False, event_handler=ServiceEventHandler))
+#     #
+#     # # Setup multicast responder
+#     # # reactor.listenMulticast(3333, multicast_responder.MulticastResponder((args.host, args.port), args.stratum_port, args.getwork_port), listenMultiple=True)
+#     # reactor.listenMulticast(3333, multicast_responder.MulticastResponder(('127.0.0.1', 50014), 3333, 8332), listenMultiple=True)
+#     # '''
+#     # log.warning("-----------------------------------------------------------------------")
+#     # if args.getwork_host == '0.0.0.0' and args.stratum_host == '0.0.0.0':
+#     #     log.warning("PROXY IS LISTENING ON ALL IPs ON PORT %d (stratum) AND %d (getwork)" % (args.stratum_port, args.getwork_port))
+#     # else:
+#     #     log.warning("LISTENING FOR MINERS ON http://%s:%d (getwork) and stratum+tcp://%s:%d (stratum)" % \
+#     #              (args.getwork_host, args.getwork_port, args.stratum_host, args.stratum_port))
+#     # log.warning("-----------------------------------------------------------------------")
+#     # '''
+#     reactor.callLater(periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry, host=host,
+#                       periodicity=periodicity, getwork=getwork)
 
-    # job_registry = jobs.JobRegistry(self._f, cmd=jobs.JobRegistry.cmd, scrypt_target=jobs.JobRegistry.scrypt_target,
-    #                no_midstate=jobs.JobRegistry.no_midstate, real_target=jobs.JobRegistry.real_target, use_old_target=jobs.JobRegistry.old_target)
 
-    # job_registry = jobs.JobRegistry
-    # client_service.ClientMiningService.job_registry = job_registry
-    # client_service.ClientMiningService.reset_timeout()
-    #
-    # f = SocketTransportClientFactory('localhost', 50014,
-    #         debug=self._f.debug, proxy=self._f.proxy,
-    #         event_handler=client_service.ClientMiningService)
-    # workers = worker_registry.WorkerRegistry(f)
-    # log.info('Switch coin middle')
-    # self._f = f
-    # self._f.on_connect(workers, job_registry)
-    # log.info('-------------------------------')
-    # log.info('Reconnecting to localhost:50014')
-    # log.info('-------------------------------')
-    # self._f.reconnect('localhost', 50014, 60)
-    # reactor.listenMulticast(3333, multicast_responder.MulticastResponder(('localhost', 50014), 3333, 8332), listenMultiple=True)
+# def switch_proxy(cp, periodicity, switch=False):
+#     if switch:
+#         switch_users = database.get_list_of_switch_users()
+#         """
+#         id, host, port, username, password, proxy_username, profitability, `MAX(Coin.profitability)`, name
+#         """
+#         for user in switch_users:
+#             if user['proxy_username'] in cp.users:
+#                 cur_user = user
+#                 f = cp.has_connection(cur_user['conn_name'])
+#                 if f:
+#                     conn_ref = cur_user['conn_ref']
+#                     f.pubsub.unsubscribe(conn_ref, subscription=f.difficulty_subscription, key=cur_user['subs1'])
+#                     f.pubsub.unsubscribe(conn_ref, subscription=f.mining_subscription, key=cur_user['subs2'])
+#                     cur = f.users[conn_ref.get_ident()]
+#                     users = {
+#                         'proxyusername': cur['proxyusername'],
+#                         'password': cur['password'],
+#                         'pool_worker_username': user['worker_username'],
+#                         'pool_worker_password': user['worker_password'],
+#                         'conn_name': user['pool_id'],
+#                         'tail': cur['tail'],
+#                         'conn_ref': conn_ref,
+#                         'subs1': cur['subs1'],
+#                         'subs2': cur['subs1']
+#                     }
+#                     new_f = cp.has_connection(user['pool_id'])
+#                     database.activate_user_worker(user['worker_username'], user['worker_password'], user['pool_id'])
+#                     if not new_f:
+#                         new_f = cp.get_connection(user['pool_id'])
+#                         subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur_user['subs1'])[0]
+#                         subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur_user['subs2'])[0]
+#                         new_f.users[conn_ref.get_ident] = users
+#                         new_f.difficulty_subscription.on_new_difficulty(new_f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
+#                         # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
+#                         new_f.job_registry.set_difficulty(new_f.difficulty_subscription.difficulty)
+#                         result = (yield new_f.rpc('mining.authorize', [user['worker_username'], user['worker_password']]))
+#             log.info('User %s was successfully switched from %s to %s pool!' % {user['proxy_username', str(f.main_host[0] + str(f.main_host[1])), str(new_f.main_host[0] + str(new_f.main_host[1]))] })
+#     reactor.callLater(periodicity, switch_proxy, cp=cp, switch=True)
 
 
-    # Setup multicast responder
-    # host = '127.0.0.1'
-    # port = 50014
-    # host = 'mint.bitminter.com'
-    # args.stratum_host = '0.0.0.0'
-    # args.stratum_port = 3333
-    # args.getwork_host = '0.0.0.0'
-    # args.getwork_port = 8332
-    #
-    # log.warning("Trying to connect to Stratum pool at %s:%d" % (host, port))
-    f.main_host = (host, port)
-    # f.port = port
-    # f.connect()
-    f.reconnect(host=host, port=port)
-    workers.set_host(host + ':' + str(port))
-    # f.retry()
-    # reactor.connectTCP(host, port, f)
-    # log.warning(workers.authorized)
-    # log.warning(workers.unauthorized)
-    # workers.clear_authorizations()
-    # f.on_connect.addCallback(on_connect, workers, job_registry)
-    # f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
-    # f = SocketTransportClientFactory(args.host, args.port,
-    #            debug=args.verbose, proxy=args.proxy,
-    #            event_handler=client_service.ClientMiningSezrvice)
-    # f = SocketTransportClientFactory('127.0.0.1', 50014,
-    #            debug=args.verbose, proxy=args.proxy,
-    #            event_handler=client_service.ClientMiningService)
-    #
-    # job_registry = jobs.JobRegistry(
-    #         f,
-    #         cmd=args.blocknotify_cmd,
-    #         no_midstate=args.no_midstate,
-    #         real_target=args.real_target,
-    #         use_old_target=args.old_target
-    #         )
-    # client_service.ClientMiningService.job_registry = job_registry
-    # client_service.ClientMiningService.reset_timeout()
-    #
-    # workers = worker_registry.WorkerRegistry(f)
-    # f.on_connect.addCallback(on_connect, workers, job_registry)
-    # f.on_disconnect.addCallback(on_disconnect, workers, job_registry)
-    #
-    # if args.test:
-    #     f.on_connect.addCallback(test_launcher, job_registry)
-    #
-    # # Cleanup properly on shutdown
-    # reactor.addSystemEventTrigger('before', 'shutdown', on_shutdown, f)
-    #
-    # # Block until proxy connect to the pool
-    # yield f.on_connect
-    #
-    # # Setup stratum listener
-    # if args.stratum_port > 0:
-    #     stratum_listener.StratumProxyService._set_upstream_factory(f)
-    #     reactor.listenTCP(args.stratum_port, SocketTransportFactory(debug=False, event_handler=ServiceEventHandler))
-    #
-    # # Setup multicast responder
-    # # reactor.listenMulticast(3333, multicast_responder.MulticastResponder((args.host, args.port), args.stratum_port, args.getwork_port), listenMultiple=True)
-    # reactor.listenMulticast(3333, multicast_responder.MulticastResponder(('127.0.0.1', 50014), 3333, 8332), listenMultiple=True)
-    # '''
-    # log.warning("-----------------------------------------------------------------------")
-    # if args.getwork_host == '0.0.0.0' and args.stratum_host == '0.0.0.0':
-    #     log.warning("PROXY IS LISTENING ON ALL IPs ON PORT %d (stratum) AND %d (getwork)" % (args.stratum_port, args.getwork_port))
-    # else:
-    #     log.warning("LISTENING FOR MINERS ON http://%s:%d (getwork) and stratum+tcp://%s:%d (stratum)" % \
-    #              (args.getwork_host, args.getwork_port, args.stratum_host, args.stratum_port))
-    # log.warning("-----------------------------------------------------------------------")
-    # '''
-    reactor.callLater(periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry, host=host,
-                      periodicity=periodicity, getwork=getwork)
+def test_switch_proxy(cp, periodicity, switch=False):
+    log.info("-----------------------------------------------------------------------")
+    log.info("-----------------------------------------------------------------------")
+    log.info("-------------------------------Switching-------------------------------")
+    log.info("-------------------------------Switching-------------------------------")
+    log.info("-------------------------------Switching-------------------------------")
+    log.info("-----------------------------------------------------------------------")
+    log.info("-----------------------------------------------------------------------")
+    if switch == True:
+        log.info('switching process')
+        log.info('switching process')
+        log.info('switching process')
+        log.info('switching process')
+        switch_users = database.get_list_of_active_users()
+        for user in switch_users:
+            log.info(user['pool_id'])
+            log.info(user['proxy_username'])
+            log.info(user['worker_username'])
+            log.info(user['worker_password'])
+        """
+        pool_id, worker_username, worker_password, proxy_username
+        """
+        used = {}
+        if len(switch_users) > 1:
+            for user in switch_users:
+                log.info(user)
+                log.info('for method')
+                if user['proxy_username'] in cp.usernames:
+                    log.info('user in cp.users!')
+                    cur_user = cp.usernames[user['proxy_username']]
+                    log.info('cur_user')
+                    log.info(cur_user)
+                    f = cp.has_connection(cur_user['conn_name'])
+                    if f:
+                        log.info('f was found!')
+                        conn_ref = cur_user['conn_ref']
+                        f.pubsub.unsubscribe(conn_ref, subscription=f.difficulty_subscription, key=cur_user['subs1'])
+                        f.pubsub.unsubscribe(conn_ref, subscription=f.mining_subscription, key=cur_user['subs2'])
+                        cur = f.users[conn_ref.get_ident()]
+                        for usr in switch_users:
+                            if usr['proxy_username'] != cur_user['proxyusername']:
+                                if cur_user['proxyusername'] in used:
+                                    if cur_user['proxyusername'] != True:
+                                        new_user = usr
+                                        used[cur_user['proxyusername']] = True
+                                else:
+                                    new_user = usr
+                                    used[cur_user['proxyusername']] = True
+                        users = {
+                            'proxyusername': cur['proxyusername'],
+                            'password': cur['password'],
+                            'pool_worker_username': new_user['worker_username'],
+                            'pool_worker_password': new_user['worker_password'],
+                            'conn_name': new_user['pool_id'],
+                            'tail': cur['tail'],
+                            'conn_ref': conn_ref,
+                            'subs1': cur['subs1'],
+                            'subs2': cur['subs1']
+                        }
+                        new_f = cp.has_connection(new_user['pool_id'])
+                        log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                        log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                        log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                        database.activate_user_worker(new_user['worker_username'], new_user['worker_password'], new_user['pool_id'])
+                        if not new_f:
+                            new_f = cp.get_connection(new_user['pool_id'])
+                        subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
+                        subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur['subs2'])[0]
+                        new_f.users[conn_ref.get_ident] = users
+                        new_f.difficulty_subscription.on_new_difficulty(new_f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
+                        # # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
+                        new_f.job_registry.set_difficulty(new_f.difficulty_subscription.difficulty)
+                        result = (new_f.rpc('mining.authorize', [new_user['worker_username'], new_user['worker_password']]))
+                        log.info('User %s was successfully switched from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+    reactor.callLater(periodicity, test_switch_proxy, cp=cp, switch=True, periodicity=periodicity)
 
 
 @defer.inlineCallbacks
@@ -390,7 +508,7 @@ def main(args):
 
     log.warning("Stratum proxy version: %s" % version.VERSION)
     # Setup periodic checks for a new version
-    test_update()
+    # test_update()
 
     if args.tor:
         log.warning("Configuring Tor connection")
@@ -520,8 +638,7 @@ def main(args):
         log.warning("-----------------------Proxy Switching Scheduled-----------------------")
         log.warning("----------------Switch Periodicity is set to %d seconds----------------" % args.switch_periodicity)
         log.warning("-----------------------------------------------------------------------")
-        # reactor.callLater(args.switch_periodicity, switch_proxy, f=f, workers=workers, job_registry=job_registry,
-        #                   host=args.host, periodicity=args.switch_periodicity, getwork=getwork_lstnr)
+        reactor.callLater(args.switch_periodicity, test_switch_proxy, cp=cp, periodicity=args.switch_periodicity, switch=False)
 
 
 if __name__ == '__main__':
