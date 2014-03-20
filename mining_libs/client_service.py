@@ -23,6 +23,7 @@ from mining_libs import worker_registry
 from mining_libs import multicast_responder
 from mining_libs import version
 from mining_libs import utils
+from mining_libs import database
 
 #end new import
 
@@ -108,6 +109,8 @@ class ClientMiningService(GenericEventHandler):
             # dcoinb1 = coinb1
             djob_id = json.dumps(job_id)
             njob_id = json.loads(djob_id[:-1] + '_' + str(f.conn_name) + djob_id[-1:])
+            log.info('database here')
+            database.add_new_job(job_id, extranonce2_size, f.extranonce1, f.conn_name, str(str(f.main_host[0]) + ':' + str(f.main_host[1])))
             f.mining_subscription.on_template(
                             # job_id + '_' + str(f.conn_name), prevhash, str(coinb1) + str(f.job_registry.extranonce1_bin), coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
                             njob_id, prevhash, ncoinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)

@@ -495,16 +495,21 @@ class StratumProxyService(GenericService):
         log.info('extranonce1')
         log.info(f.extranonce1)
         start = time.time()
+        log.info(job_id, worker_name, extranonce2)
+        log.info(job_id, worker_name, extranonce2)
+        log.info(job_id, worker_name, extranonce2)
         try:
             log.info('submitting: ' + str(self.connection_ref().get_ident()) + '  --  ' + str(tail))
             result = (yield f.rpc('mining.submit', [worker_name, job_id, tail+extranonce2, ntime, nonce]))
         except RemoteServiceException as exc:
             response_time = (time.time() - start) * 1000
             log.info("[%dms] Share from '%s' on %s:%d REJECTED: %s" % (response_time, worker_name, f.main_host[0], f.main_host[1], str(exc)))
+            database.update_job(job_id, worker_name, extranonce2, 4, False)
             raise SubmitException(*exc.args)
 
         response_time = (time.time() - start) * 1000
         database.increase_accepted_shares(worker_name, f.conn_name)
+        database.update_job(job_id, worker_name, extranonce2, 4, True)
         log.info("[%dms] Share from '%s' on %s%d accepted, diff %d" % (response_time, worker_name, f.main_host[0], f.main_host[1], f.difficulty_subscription.difficulty))
         defer.returnValue(result)
 

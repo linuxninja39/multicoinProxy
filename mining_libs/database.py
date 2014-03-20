@@ -10,7 +10,7 @@ log = stratum.logger.get_logger('proxy')
 
 
 def get_worker(host, port, username, password=None):
-
+    log.info(host, port, username, password)
     worker = session.execute(
         "\
         SELECT DISTINCT Worker.id, Worker.name, Worker.password, ProxyUser.password AS userpassword FROM Worker \
@@ -308,5 +308,45 @@ def increase_accepted_shares(worker_name, pool_id):
             'worker_name': worker_name
         }
     )
+    session.flush()
+    session.commit()
+
+
+def add_new_job(job_id, extranonce2_size_pool, extranonce1, pool_id, pool_name):
+    _ = session.execute(
+        " \
+        INSERT INTO tempJob (job_id, extranonce2_size_pool, extranonce1, pool_id, pool_name) \
+        VALUES (:job_id, :extranonce2_size_pool, :extranonce1, :pool_id, :pool_name) \
+        ",
+        {
+            'job_id': job_id,
+            'extranonce2_size_pool': extranonce2_size_pool,
+            'extranonce1': extranonce1,
+            'pool_id': pool_id,
+            'pool_name': pool_name
+        }
+    )
+    log.info('here')
+    session.flush()
+    session.commit()
+
+
+def update_job(job_id, worker_name, extranonce2, extranonce2_size_user, accepted):
+    _ = session.execute(
+        " \
+        UPDATE tempJob \
+        SET extranonce2_size_user = :extranonce2_size_user, accepted = :accepted, \
+        worker_name = :worker_name, extranonce2 = :extranonce2 \
+        WHERE tempJob.job_id = :job_id \
+        ",
+        {
+            'job_id': job_id,
+            'extranonce2_size_user': extranonce2_size_user,
+            'extranonce2': extranonce2,
+            'worker_name': worker_name,
+            'accepted': accepted,
+        }
+    )
+    log.info('here')
     session.flush()
     session.commit()
