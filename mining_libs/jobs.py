@@ -105,25 +105,25 @@ class JobRegistry(object):
         self.on_block = defer.Deferred()
 
     def execute_cmd(self, prevhash):
-        log.info('execute_cmd')
-        log.info(prevhash)
-        log.info(self.cmd)
+        # log.info('execute_cmd')
+        # log.info(prevhash)
+        # log.info(self.cmd)
         return subprocess.Popen(self.cmd.replace('%s', prevhash), shell=True)
 
     def set_extranonce(self, extranonce1, extranonce2_size):
-        log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
-        log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
-        log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
-        log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
-        log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
-        log.info(extranonce1)
-        log.info(extranonce2_size)
+        # log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
+        # log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
+        # log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
+        # log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
+        # log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
+        # log.info(extranonce1)
+        # log.info(extranonce2_size)
         self.extranonce2_size = extranonce2_size
         self.f.extranonce2_size = extranonce2_size
         self.extranonce1_bin = binascii.unhexlify(extranonce1)
         self.f.extranonce1 = self.extranonce1
-        log.info(self.f.extranonce1)
-        log.info(self.f.extranonce2_size)
+        # log.info(self.f.extranonce1)
+        # log.info(self.f.extranonce2_size)
 
     def set_difficulty(self, new_difficulty):
         dif1 = 0x00000000ffff0000000000000000000000000000000000000000000000000000 
@@ -163,14 +163,14 @@ class JobRegistry(object):
         self.jobs.append(template)
         self.last_job = template
 
-        log.info('template')
-        log.info('template')
-        log.info('template')
-        log.info(template.job_id)
-        log.info(self.f.main_host)
-        log.info('template')
-        log.info('template')
-        log.info('template')
+        # log.info('template')
+        # log.info('template')
+        # log.info('template')
+        # log.info(template.job_id)
+        # log.info(self.f.main_host)
+        # log.info('template')
+        # log.info('template')
+        # log.info('template')
 
         if clean_jobs:
             # Force miners to reload jobs
@@ -244,10 +244,10 @@ class JobRegistry(object):
         return result            
         
     def submit(self, header, worker_name):
-        log.info('jobregistry_submit')
-        log.info('jobregistry_submit')
-        log.info(self.f.main_host)
-        log.info('jobregistry_submit')
+        # log.info('jobregistry_submit')
+        # log.info('jobregistry_submit')
+        # log.info(self.f.main_host)
+        # log.info('jobregistry_submit')
         # Drop unused padding
         header = header[:160]
 

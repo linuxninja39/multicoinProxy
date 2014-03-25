@@ -70,7 +70,6 @@ class ClientMiningService(GenericEventHandler):
         # log.warning('Current method %s' % method )
         if method == 'mining.notify':
             '''Proxy just received information about new mining job'''
-            log.info('Proxy just received information about new mining job')
             (job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs) = params[:9]
             #print len(str(params)), len(merkle_branch)
 
@@ -94,36 +93,37 @@ class ClientMiningService(GenericEventHandler):
             port = connection_ref.transport.getPeer().port
                 # if self.cp:
             f = self.cp.get_connection(ip=ip, port=port)
+            log.info("Proxy just received information about new mining job on '%s:%d' pool" % (f.main_host[0], f.main_host[1]))
 
             # Broadcast to Stratum clients
             # stratum_listener.MiningSubscription.on_template(
             # Adding connection_id to job_id
-            log.info(('job_id', 'prevhash', 'coinb1', 'coinb2', 'merkle_branch', 'version', 'nbits', 'ntime'))
-            log.info((job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime))
-            log.info(f.job_registry.extranonce1_bin)
-            log.info(f.extranonce1)
-            log.info(f.conn_name)
+            # log.info(('job_id', 'prevhash', 'coinb1', 'coinb2', 'merkle_branch', 'version', 'nbits', 'ntime'))
+            # log.info((job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime))
+            # log.info(f.job_registry.extranonce1_bin)
+            # log.info(f.extranonce1)
+            # log.info(f.conn_name)
             (tail, extranonce2_size) = stratum_listener.StratumProxyService._get_unused_tail(f)
             dcoinb1 = json.dumps(coinb1)
             ncoinb1 = json.loads(dcoinb1[:-1] + str(f.extranonce1) + dcoinb1[-1:])
             # dcoinb1 = coinb1
             djob_id = json.dumps(job_id)
             njob_id = json.loads(djob_id[:-1] + '_' + str(f.conn_name) + djob_id[-1:])
-            log.info('database here')
+            # log.info('database here')
             database.add_new_job(job_id, extranonce2_size, f.extranonce1, f.conn_name, str(str(f.main_host[0]) + ':' + str(f.main_host[1])))
             f.mining_subscription.on_template(
                             # job_id + '_' + str(f.conn_name), prevhash, str(coinb1) + str(f.job_registry.extranonce1_bin), coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
-                            njob_id, prevhash, ncoinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
+                            njob_id, prevhash, ncoinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs, f=f)
 
             # Broadcast to getwork clients
             job = Job.build_from_broadcast(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime)
-            log.info(('job_id', 'prevhash', 'coinb1', 'coinb2', 'merkle_branch', 'version', 'nbits', 'ntime'))
-            log.info((job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime))
-            log.info("%s:%d - New job %s for prevhash %s, clean_jobs=%s" % \
-                 (f.main_host[0], f.main_host[1], job.job_id, utils.format_hash(job.prevhash), clean_jobs))
+            # log.info(('job_id', 'prevhash', 'coinb1', 'coinb2', 'merkle_branch', 'version', 'nbits', 'ntime'))
+            # log.info((job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime))
+            # log.info("%s:%d - New job %s for prevhash %s, clean_jobs=%s" % \
+            #      (f.main_host[0], f.main_host[1], job.job_id, utils.format_hash(job.prevhash), clean_jobs))
 
             f.job_registry.add_template(job, clean_jobs)
-            log.info(f.job_registry.jobs)
+            # log.info(f.job_registry.jobs)
             # self.job_registry.add_template(job, clean_jobs)
 
         elif method == 'mining.set_difficulty':

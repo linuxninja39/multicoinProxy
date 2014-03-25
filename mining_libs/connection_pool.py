@@ -1,6 +1,6 @@
 from stratum.socket_transport import SocketTransportFactory
 from twisted.internet import defer
-from mining_libs.custom_classes import CustomSocketTransportClientFactory as SocketTransportClientFactory
+from mining_libs.custom_classes import CustomSocketTransportClientFactory as SocketTransportClientFactory, Connections
 from mining_libs import database, jobs
 from mining_libs import worker_registry
 import stratum.logger
@@ -25,9 +25,9 @@ def new_on_connect(f):
     #     f.workers.authorize(args.custom_user, args.custom_password)
 
     # Subscribe for receiving jobs
-    log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
-    log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
-    log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
+    # log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
+    # log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
+    # log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
     log.info("Subscribing for mining jobs on %s:%d" % (f.main_host[0], f.main_host[1]))
     # for i in range(1, 10):
     #     log.info('subscribing')
@@ -40,16 +40,16 @@ def new_on_connect(f):
         # log.info('subscribing')
         # log.info('subscribing')
     (_, extranonce1, extranonce2_size) = (yield f.rpc('mining.subscribe', []))[:3]
-    log.info(extranonce1)
-    log.info(extranonce2_size)
+    # log.info(extranonce1)
+    # log.info(extranonce2_size)
     # job_registry.set_extranonce(extranonce1, extranonce2_size)
     # stratum_listener.StratumProxyService._set_extranonce(extranonce1, extranonce2_size)
     f.job_registry.set_extranonce(extranonce1, extranonce2_size)
-    log.info(f.extranonce1)
-    log.info(f.extranonce2_size)
+    # log.info(f.extranonce1)
+    # log.info(f.extranonce2_size)
     stratum_listener.StratumProxyService._set_extranonce(f, extranonce1, extranonce2_size)
-    log.info(f.extranonce1)
-    log.info(f.extranonce2_size)
+    # log.info(f.extranonce1)
+    # log.info(f.extranonce2_size)
 
     defer.returnValue(f)
 
@@ -81,10 +81,10 @@ def new_on_disconnect(f):
     # f.close_connection(f.conn_name)
     # defer.returnValue(f)
     return f
-    # yield f
+
 
 class ConnectionPool():
-    _connections = {}
+    _connections = {}  # Dictionary of all connected pools
     debug = False
     proxy = None
     event_handler = None
@@ -99,6 +99,7 @@ class ConnectionPool():
     on_disconnect_callback = None
     users = {}
     usernames = {}
+    connections = Connections()  # For listing all connected users
 
     def __init__(self, debug,
                  # proxy,
@@ -118,12 +119,12 @@ class ConnectionPool():
             port=None,
             ip=None
     ):
-        log.info("getConnection")
+        # log.info("getConnection")
         if conn_name is None:
             if ip:
                 conn_name = self.get_pool_by_ip(ip)
-                log.info(ip)
-                log.info(conn_name)
+                # log.info(ip)
+                # log.info(conn_name)
             if conn_name is None:
                 pool = database.get_pool_id_by_host_and_port(host, port)
                 if pool:
@@ -144,12 +145,12 @@ class ConnectionPool():
             port=None,
             ip=None
     ):
-        log.info("getConnection")
+        # log.info("getConnection")
         if conn_name is None:
             if ip:
                 conn_name = self.get_pool_by_ip(ip)
-                log.info(ip)
-                log.info(conn_name)
+                # log.info(ip)
+                # log.info(conn_name)
             if conn_name is None:
                 pool = database.get_pool_id_by_host_and_port(host, port)
                 if pool:
@@ -167,10 +168,10 @@ class ConnectionPool():
             conn_name=None,
     ):
         if conn_name is None:
-            log.info(host)
-            log.info(port)
+            # log.info(host)
+            # log.info(port)
             conn_name = database.get_pool_id_by_host_and_port(host, port)['id']
-            log.info(conn_name)
+            # log.info(conn_name)
         self._connections[conn_name] = SocketTransportClientFactory(host=host, port=port, debug=self.debug,
                                                                     conn_name=conn_name
                                                                     # , proxy=self.proxy

@@ -19,6 +19,38 @@ log = logger.get_logger('proxy')
 from mining_libs import client_service
 from stratum import pubsub
 
+
+class Connections(dict):
+    def get(self, key):
+        if key in self:
+            return self[key]
+
+    def set(self, key, value):
+        # if key not in self:
+        #     self[key] = []
+        self[key] = value
+
+    def unset(self, key):
+        if key in self:
+            self.pop(key, None)
+
+    # def remove(self, key, value):
+    #     if key in self:
+    #         if value in self[key]:
+    #             self[key].remove(value)
+    #             if len(self[key]) == 0:
+    #                 self.unset(key)
+
+    def has(self, key, value=None):
+        if key in self:
+            if value:
+                if value in self[key]:
+                    return self[key]
+                else:
+                    return False
+        return False
+
+
 class CustomSocketTransportClientFactory(SocketTransportClientFactory):
     extranonce1 = None
     extranonce2_size = None
@@ -33,6 +65,8 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
     connected = False
     pool = None  # ConnectionPool
     users = {}
+    connections = Connections()  # For listing all connected users
+    usernames = {}
 
     def __init__(self, host, port, allow_trusted=True, allow_untrusted=False, debug=False, signing_key=None,
                  signing_id=None, is_reconnecting=True, proxy=None, event_handler=client_service.ClientMiningService, conn_name=None):
@@ -62,7 +96,6 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
         self.pubsub = Pubsub()
         self.pubsub.f = self
         self.users = {}
-        self.usernames = {}
 
     def rpc(self, method, params, *args, **kwargs):
         if not self.client:
@@ -123,7 +156,7 @@ class Pubsub(object):
             else:
                 # If subscription is NOT processed during the request (any real use case?),
                 # process callback instantly (better now than never).
-                subscription.after_subscribe(True)
+                subscription.after_subscribe(True, f=self.f)
 
         # List of 2-tuples is prepared for future multi-subscriptions
         return ((subscription.event, key),)
@@ -155,7 +188,7 @@ class Pubsub(object):
         return len(self.__subscriptions.get(event, {}))
 
     # @classmethod
-    def get_subscription(cls, connection, event, key=None):
+    def get_subscription(self, connection, event, key=None):
         '''Return subscription object for given connection and event'''
         session = ConnectionRegistry.get_session(connection)
         if session == None:
@@ -183,5 +216,29 @@ class Pubsub(object):
 
     # @classmethod
     def emit(self, event, *args, **kwargs):
+        count = 0
+        f = kwargs.get('f', None)
+        # log.info('conn_name')
+        # log.info('conn_name')
+        # log.info(f.conn_name)
+        # log.info('conn_name')
+        # log.info('conn_name')
         for subscription in self.iterate_subscribers(event):
-            subscription.emit_single(*args, **kwargs)
+            if subscription.f.conn_name == f.conn_name:
+                count += 1
+                # log.info('subscription')
+                # log.info('subscription')
+                # log.info('subscription')
+                # log.info('subscription')
+                # log.info('subscription')
+                # log.info(subscription)
+                # log.info(subscription.event)
+                # log.info(subscription.f.conn_name)
+                # log.info(subscription.f.users)
+                # log.info(count)
+                # log.info('subscription')
+                # log.info('subscription')
+                # log.info('subscription')
+                # log.info('subscription')
+                # log.info('subscription')
+                subscription.emit_single(*args, **kwargs)

@@ -71,9 +71,9 @@ class WorkerRegistry(object):
 
     def authorize(self, proxyusername, password):
         log.info(proxyusername + ' ' + password)
-        log.info('workers_authorize')
-        log.info('workers_authorize')
-        log.info('workers_authorize')
+        # log.info('workers_authorize')
+        # log.info('workers_authorize')
+        # log.info('workers_authorize')
         if proxyusername in self.authorized:
             return True
 
@@ -85,6 +85,12 @@ class WorkerRegistry(object):
         # worker = self.userMapper.getUser(worker_name, password, self.host)
         # worker = database.get_worker(self.host, self.port, proxyusername, password)
         pool_worker = database.get_best_pool_and_worker_by_proxy_user(proxyusername, password)
+
+        # if self.connection_ref().get_ident() in self._cp.new_users:
+        #     pool_worker = database.get_best_pool_and_worker_by_proxy_user(proxyusername, password)
+        # else:
+        #     pool_worker = database.get_current_pool_and_worker_by_proxy_user(proxyusername, password)
+
         if not pool_worker:
             # log.info("User with local user/pass '%s:%s' doesn't have an account on '%s:%d' pool" % \
             log.info("User with local user/pass '%s:%s' failed" % \
