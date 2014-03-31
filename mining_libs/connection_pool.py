@@ -48,6 +48,10 @@ def new_on_connect(f):
     # log.info(f.extranonce1)
     # log.info(f.extranonce2_size)
     stratum_listener.StratumProxyService._set_extranonce(f, extranonce1, extranonce2_size)
+    for user in f.new_users:
+        log.info('Authorizing %s:%s' % (str(user[0]), str(user[1])))
+        result = (f.rpc('mining.authorize', [user[0], user[1]]))
+        f.new_users.pop(f.new_users.index(user))
     # log.info(f.extranonce1)
     # log.info(f.extranonce2_size)
 
@@ -129,13 +133,13 @@ class ConnectionPool():
                 pool = database.get_pool_id_by_host_and_port(host, port)
                 if pool:
                     conn_name = pool['id']
-
         if conn_name in self._connections.keys():
             return self._connections[conn_name]
         else:
             return self._new_connection(
                 host=host,
                 port=port,
+                conn_name=conn_name
             )
 
     def has_connection(
@@ -145,7 +149,8 @@ class ConnectionPool():
             port=None,
             ip=None
     ):
-        # log.info("getConnection")
+        log.info("getConnection")
+        log.info(conn_name)
         if conn_name is None:
             if ip:
                 conn_name = self.get_pool_by_ip(ip)
@@ -167,11 +172,17 @@ class ConnectionPool():
             port,
             conn_name=None,
     ):
+        log.info('_new_connection')
+        log.info(host)
+        log.info(port)
+        log.info(conn_name)
+        log.info('_new_connection')
         if conn_name is None:
             # log.info(host)
             # log.info(port)
             conn_name = database.get_pool_id_by_host_and_port(host, port)['id']
             # log.info(conn_name)
+
         self._connections[conn_name] = SocketTransportClientFactory(host=host, port=port, debug=self.debug,
                                                                     conn_name=conn_name
                                                                     # , proxy=self.proxy

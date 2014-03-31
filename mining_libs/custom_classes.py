@@ -53,9 +53,9 @@ class Connections(dict):
 
 class CustomSocketTransportClientFactory(SocketTransportClientFactory):
     extranonce1 = None
-    extranonce2_size = None
+    extranonce2_size = 4  # Temporarily
     tail_iterator = 0
-    registered_tails= []
+    registered_tails = []
     mining_subscription = None  # stratum_listener.py MiningSubscription
     difficulty_subscription = None  # stratum_listener.py DifficultySubscription
     job_registry = None  # jobs.py JobRegistry
@@ -96,6 +96,7 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
         self.pubsub = Pubsub()
         self.pubsub.f = self
         self.users = {}
+        self.new_users = []
 
     def rpc(self, method, params, *args, **kwargs):
         if not self.client:
@@ -114,6 +115,7 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
     def set_difficulty_subscription(self, difficulty_subscription=None):
         if difficulty_subscription is None:
             self.difficulty_subscription = DifficultySubscription()
+            self.difficulty_subscription.f = self
         else:
             self.difficulty_subscription = difficulty_subscription
         return self.difficulty_subscription
@@ -218,27 +220,6 @@ class Pubsub(object):
     def emit(self, event, *args, **kwargs):
         count = 0
         f = kwargs.get('f', None)
-        # log.info('conn_name')
-        # log.info('conn_name')
-        # log.info(f.conn_name)
-        # log.info('conn_name')
-        # log.info('conn_name')
         for subscription in self.iterate_subscribers(event):
             if subscription.f.conn_name == f.conn_name:
-                count += 1
-                # log.info('subscription')
-                # log.info('subscription')
-                # log.info('subscription')
-                # log.info('subscription')
-                # log.info('subscription')
-                # log.info(subscription)
-                # log.info(subscription.event)
-                # log.info(subscription.f.conn_name)
-                # log.info(subscription.f.users)
-                # log.info(count)
-                # log.info('subscription')
-                # log.info('subscription')
-                # log.info('subscription')
-                # log.info('subscription')
-                # log.info('subscription')
                 subscription.emit_single(*args, **kwargs)

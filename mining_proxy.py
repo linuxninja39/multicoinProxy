@@ -407,6 +407,12 @@ def test():
 #     reactor.callLater(periodicity, switch_proxy, cp=cp, switch=True)
 
 def switch_proxy(cp, periodicity, switch=False):
+    log.info("-----------------------------------------------------------------------")
+    # log.info("-----------------------------------------------------------------------")
+    # log.info("-------------------------------Switching-------------------------------")
+    log.info("-------------------------------Switching-------------------------------")
+    # log.info("-------------------------------Switching-------------------------------")
+    log.info("-----------------------------------------------------------------------")
     if switch == True:
         log.info("-----------------------------------------------------------------------")
         # log.info("-----------------------------------------------------------------------")
@@ -430,22 +436,22 @@ def switch_proxy(cp, periodicity, switch=False):
         pool_id, host, port,  worker_username, worker_password, proxy_username, etc
         """
         used = {}
-        if len(switch_users) > 1:
+        if len(switch_users) > 0:
             for user in switch_users:
-                # log.info(user)
-                # log.info('for method')
+                log.info(user)
+                log.info('for method')
                 if user['proxy_username'] in cp.usernames:
                     conn_name = cp.usernames[user['proxy_username']]['conn_name']
-                    # log.info('user in cp.users!')
+                    log.info('user in cp.users!')
                     cur_user = cp.usernames[user['proxy_username']]
-                    # log.info('cur_user')
-                    # log.info(cur_user)
+                    log.info('cur_user')
+                    log.info(cur_user)
                     f = cp.has_connection(cur_user['conn_name'])
                     if f:
                         for usr in f.usernames[user['proxy_username']]['connections']:
-
                             log.info('f was found!')
                             cur = f.users[usr]
+                            log.info(cur)
                             conn_ref = cur['conn_ref']
                             f.pubsub.unsubscribe(conn_ref, subscription=f.difficulty_subscription, key=cur['subs1'])
                             f.pubsub.unsubscribe(conn_ref, subscription=f.mining_subscription, key=cur['subs2'])
@@ -458,38 +464,44 @@ def switch_proxy(cp, periodicity, switch=False):
                             #         else:
                             #             new_user = usr
                             #             used[cur_user['proxyusername']] = True
-                            new_user = cur
+                            # new_user = cur
                             users = {
                                 'proxyusername': cur['proxyusername'],
                                 'password': cur['password'],
                                 'pool_worker_username': user['worker_username'],
                                 'pool_worker_password': user['worker_password'],
-                                'conn_name': new_user['pool_id'],
+                                'conn_name': user['pool_id'],
                                 'tail': cur['tail'],
                                 'conn_ref': conn_ref,
                                 'subs1': cur['subs1'],
                                 'subs2': cur['subs1']
                             }
-                            new_f = cp.has_connection(new_user['pool_id'])
-                            log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
-                            # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
-                            # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
-                            database.activate_user(new_user['proxyusername'], new_user['pool_id'])
+                            new_f = cp.has_connection(conn_name=user['pool_id'])
                             if not new_f:
-                                new_f = cp.get_connection(new_user['pool_id'])
+                                new_f = cp.get_connection(conn_name=user['pool_id'], host=user['host'], port=user['port'])
+                            log.info('Switching user %s from %s to %s pool' % (str(cur['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                            # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                            # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                            # database.activate_user(new_user['proxyusername'], new_user['conn_name'])
+                            database.activate_user_worker(user['worker_username'], user['worker_password'], new_f.conn_name)
+                            if new_f.client == None or not new_f.client.connected:
+                                f.new_users += [[user['worker_username'], user['worker_password']]]
+                            else:
+                                result = (new_f.rpc('mining.authorize', [user['worker_username'], user['worker_password']]))
+                            log.info('after yield')
                             subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
                             subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur['subs2'])[0]
                             new_f.users[conn_ref.get_ident()] = users
-                            new_f.difficulty_subscription.on_new_difficulty(new_f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
+                            new_f.difficulty_subscription.emit_single(new_f.difficulty_subscription.difficulty, f=new_f)
                             # # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
-                            new_f.job_registry.set_difficulty(new_f.difficulty_subscription.difficulty)
-                            result = (new_f.rpc('mining.authorize', [new_user['worker_username'], new_user['worker_password']]))
-                            log.info('User %s was successfully switched from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                            log.info('User %s was successfully switched from %s to %s pool' % (str(cur['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
                             f.users.pop(conn_ref.get_ident(), None)
                             uindex = f.usernames[user['proxy_username']]['connections'].index(usr)
                             f.usernames[user['proxy_username']]['connections'] = f.usernames[user['proxy_username']]['connections'][:uindex] + f.usernames[user['proxy_username']]['connections'][uindex+1:]
-    switch = False
-    reactor.callLater(periodicity, test_switch_proxy, cp=cp, switch=switch, periodicity=periodicity)
+                            if new_f.client == None or not new_f.client.connected:
+                                yield f.on_connect()
+    switch = True
+    reactor.callLater(periodicity, switch_proxy, cp=cp, switch=switch, periodicity=periodicity)
 
 
 def test_switch_proxy(cp, periodicity, switch=False):
@@ -628,9 +640,9 @@ def main(args):
     client_service.ClientMiningService.set_cp(cp)
     # Connect to Stratum pool
     log.info(args.host + ':' + str(args.port))
-    # cp.init_all_pools()
     database.deactivate_all_users()
-    cp.init_one_pool()
+    cp.init_all_pools()
+    # cp.init_one_pool()
     # f = cp.get_connection(host=args.host, port=args.port)
     # log.info(f)
     # f = SocketTransportClientFactory(args.host, args.port,
@@ -727,7 +739,7 @@ def main(args):
         log.warning("-----------------------Proxy Switching Scheduled-----------------------")
         log.warning("----------------Switch Periodicity is set to %d seconds----------------" % args.switch_periodicity)
         log.warning("-----------------------------------------------------------------------")
-        test_switch_proxy(cp, args.switch_periodicity, False)
+        switch_proxy(cp, args.switch_periodicity, False)
         # reactor.callLater(args.switch_periodicity, test_switch_proxy, cp=cp, periodicity=args.switch_periodicity, switch=True)
 
 

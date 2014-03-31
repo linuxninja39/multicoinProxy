@@ -2,14 +2,13 @@ from sqlalchemy import schema, create_engine
 from sqlalchemy.orm import sessionmaker
 import stratum
 from model import models
-dbEngine = create_engine('mysql+mysqldb://root:jfdojfoed8@localhost/MultiPool', echo=False)
+dbEngine = create_engine('mysql+mysqldb://root:jfdojfoed8@localhost/NewMultiPool', echo=False)
 Session = sessionmaker(bind=dbEngine)
 session = Session()
-preferred_pools = "'stratum.bitcoin.cz','mint.bitminter.com'"
 log = stratum.logger.get_logger('proxy')
 
 
-def old_get_worker(host, port, username, pool_id, password=None):
+def get_worker(host, port, username, pool_id, password=None):
     # log.info(host, port, username, password)
     worker = session.execute(
         "\
@@ -19,7 +18,7 @@ def old_get_worker(host, port, username, pool_id, password=None):
         LEFT JOIN WorkerService ON WorkerService.workerId = Worker.id \
         LEFT JOIN Service ON Service.id = WorkerService.serviceId \
         LEFT JOIN Host ON Service.hostId = Host.id \
-        WHERE Service.id =  \
+        WHERE ProxyUser.username = :username AND Service.id = :pool_id \
         ",
         {'host': host, 'port': port, 'username': username, 'pool_id': str(pool_id)}
     ).first()
@@ -36,26 +35,26 @@ def old_get_worker(host, port, username, pool_id, password=None):
         return None
 
 
-def get_worker(host, port, username, pool_id, password=None):
-    worker = session.execute(
-        "\
-        SELECT DISTINCT Worker.id, Worker.name, Worker.password FROM Worker \
-        JOIN WorkerService ON WorkerService.serviceId = :pool_id \
-        JOIN Worker ON Worker.id = WorkerService.workerId \
-        ",
-        {'host': host, 'port': port, 'username': username, 'pool_id': str(pool_id)}
-    ).first()
-    # log.info(worker)
-    if worker:
-        if password:
-            if password == worker['userpassword']:
-                return {'remoteUsername': worker['name'], 'remotePassword': worker['password']}
-            else:
-                return None
-        else:
-            return {'remoteUsername': worker['name'], 'remotePassword': worker['password']}
-    else:
-        return None
+# def get_worker(host, port, username, pool_id, password=None):
+#     worker = session.execute(
+#         "\
+#         SELECT DISTINCT Worker.id, Worker.name, Worker.password FROM Worker \
+#         JOIN WorkerService ON WorkerService.serviceId = :pool_id \
+#         JOIN Worker ON Worker.id = WorkerService.workerId \
+#         ",
+#         {'host': host, 'port': port, 'username': username, 'pool_id': str(pool_id)}
+#     ).first()
+#     # log.info(worker)
+#     if worker:
+#         if password:
+#             if password == worker['userpassword']:
+#                 return {'remoteUsername': worker['name'], 'remotePassword': worker['password']}
+#             else:
+#                 return None
+#         else:
+#             return {'remoteUsername': worker['name'], 'remotePassword': worker['password']}
+#     else:
+#         return None
 
 
 def get_best_coin(host):
@@ -82,7 +81,7 @@ def get_pools():
         JOIN CoinService ON CoinService.coinId = Coin.id \
         JOIN Service ON Service.id = CoinService.serviceId \
         JOIN Host ON Host.id = Service.hostId \
-        WHERE Coin.profitability = (SELECT MAX(c.profitability) FROM Coin c) \
+        WHERE Service.active = TRUE \
         "
     )
     # log.info(pools)
@@ -222,30 +221,31 @@ def get_current_pool_and_worker_by_proxy_user(proxy_username, proxy_password):
     return pool
 
 
-def old_get_list_of_switch_users():
+def get_list_of_switch_users():
     users = session.execute(
         " \
-        SELECT Service.id AS pool_id, Host.name AS host, Service.port AS port, Worker.name AS worker_username, Worker.password AS worker_password, ProxyUser.username AS proxy_username, Coin.profitability, MAX(Coin.profitability), Coin.name From Service \
+        SELECT Service.id AS pool_id, Host.name AS host, Service.port AS port, \
+        Worker.id as worker_id, Worker.name AS worker_username, Worker.password AS worker_password, \
+        ProxyUser.username AS proxy_username, Coin.profitability, MAX(Coin.profitability), Coin.name From Service \
         JOIN Host ON Service.hostId = Host.id \
         JOIN WorkerService ON WorkerService.serviceId = Service.id \
-        JOIN Worker ON Worker.id = WorkerService.workerId \
         JOIN CoinService ON CoinService.serviceId = Service.id \
         JOIN Coin ON Coin.id = CoinService.coinId \
-        JOIN User ON Worker.userId = User.id \
-        JOIN UserCoin ON UserCoin.userId = User.id AND UserCoin.coinId = Coin.id \
-        JOIN ProxyUser ON ProxyUser.userId = User.id \
+        JOIN UserCoin ON UserCoin.coinId = Coin.id \
+        JOIN ProxyUser ON ProxyUser.userId = UserCoin.userId \
+        JOIN Worker ON Worker.id = WorkerService.workerId AND Worker.userId = UserCoin.userId \
+        JOIN User ON User.id = ProxyUser.userId \
         JOIN (\
             SELECT Coin.profitability, ProxyUser.username FROM Service \
             JOIN Host ON Service.hostId = Host.id \
             JOIN WorkerService ON WorkerService.serviceId = Service.id \
-            JOIN Worker ON Worker.id = WorkerService.workerId \
             JOIN CoinService ON CoinService.serviceId = Service.id \
             JOIN Coin ON Coin.id = CoinService.coinId \
-            JOIN User ON Worker.userId = User.id \
-            JOIN UserCoin ON UserCoin.userId = User.id AND UserCoin.coinId = Coin.id \
-            JOIN ProxyUser ON ProxyUser.userId = User.id \
+            JOIN UserCoin ON UserCoin.coinId = Coin.id \
+            JOIN ProxyUser ON ProxyUser.userId = UserCoin.userId \
+            JOIN Worker ON Worker.id = WorkerService.workerId AND Worker.userId = UserCoin.userId \
             AND UserCoin.mine = TRUE \
-            AND WorkerService.active = FALSE \
+            AND WorkerService.active = TRUE \
             ) SL ON ProxyUser.username = SL.username \
         WHERE Coin.profitability > SL.profitability \
         AND UserCoin.mine = TRUE \
@@ -253,52 +253,9 @@ def old_get_list_of_switch_users():
         GROUP BY proxy_username \
         ",
     ).fetchall()
-    # log.info(users)
+    log.info(users)
     return users
 
-
-def get_list_of_switch_users():
-    users = session.execute(
-        " \
-        SELECT Service.id AS pool_id, Host.name AS host, Service.port AS port, Worker.name AS worker_username, Worker.password AS worker_password, ProxyUser.username AS proxy_username, Coin.profitability, MAX(Coin.profitability), Coin.name From Service \
-        JOIN Host ON Service.hostId = Host.id \
-        JOIN WorkerService ON WorkerService.serviceId = Service.id \
-        JOIN Worker ON Worker.id = WorkerService.workerId \
-        JOIN CoinService ON CoinService.serviceId = Service.id \
-        JOIN Coin ON Coin.id = CoinService.coinId \
-        JOIN UserCoin ON UserCoin.coinId = Coin.id \
-        JOIN ProxyUser ON ProxyUser.userId = UserCoin.userId \
-        JOIN (\
-            SELECT Coin.profitability, ProxyUser.username FROM Service \
-            JOIN Host ON Service.hostId = Host.id \
-            JOIN WorkerService ON WorkerService.serviceId = Service.id \
-            JOIN Worker ON Worker.id = WorkerService.workerId \
-            JOIN CoinService ON CoinService.serviceId = Service.id \
-            JOIN Coin ON Coin.id = CoinService.coinId \
-            JOIN UserCoin ON UserCoin.coinId = Coin.id \
-            JOIN ProxyUser ON ProxyUser.userId = UserCoin.userId \
-            AND UserCoin.mine = TRUE \
-            AND UserCoin.active = TRUE \
-            ) SL ON ProxyUser.username = SL.username \
-        WHERE Coin.profitability > SL.profitability \
-        AND UserCoin.mine = TRUE \
-        AND UserCoin.active = FALSE \
-        GROUP BY proxy_username \
-        ",
-    ).fetchall()
-    # log.info(users)
-    return users
-"SELECT Service.id, Coin.profitability, ProxyUser.username FROM Service \
-            JOIN Host ON Service.hostId = Host.id \
-            JOIN WorkerService ON WorkerService.serviceId = Service.id \
-            JOIN Worker ON Worker.id = WorkerService.workerId \
-            JOIN CoinService ON CoinService.serviceId = Service.id \
-            JOIN Coin ON Coin.id = CoinService.coinId \
-            JOIN UserCoin ON UserCoin.coinId = Coin.id \
-            JOIN ProxyUser ON ProxyUser.userId = UserCoin.userId \
-            AND UserCoin.mine = TRUE \
-            AND UserCoin.active = FALSE \
-            "
 
 def get_list_of_active_users():
     users = session.execute(
@@ -377,7 +334,7 @@ def deactivate_all_users():
     session.commit()
 
 
-def old_increase_accepted_shares(worker_name, pool_id):
+def increase_accepted_shares(worker_name, pool_id):
     _ = session.execute(
         " \
         UPDATE WorkerService \
@@ -394,17 +351,17 @@ def old_increase_accepted_shares(worker_name, pool_id):
     session.commit()
 
 
-def increase_accepted_shares(proxy_username, pool_id):
+def increase_rejected_shares(worker_name, pool_id):
     _ = session.execute(
         " \
-        UPDATE UserCoin \
-        SET UserCoin.accepted = UserCoin.accepted + 1 \
-        WHERE UserCoin.userId = (SELECT User.id FROM User JOIN ProxyUser ON ProxyUser.userId = User.id WHERE ProxyUser.username = :proxy_username ) \
-        AND UserCoin.coinId = (SELECT CoinService.coinId FROM CoinService WHERE CoinService.serviceId = :pool_id ) \
+        UPDATE WorkerService \
+        JOIN Worker ON Worker.id = WorkerService.workerId \
+        SET WorkerService.rejected = WorkerService.accepted + 1 \
+        WHERE WorkerService.serviceId = :pool_id AND Worker.name = :worker_name \
         ",
         {
             'pool_id': pool_id,
-            'proxy_username': proxy_username
+            'worker_name': worker_name
         }
     )
     session.flush()

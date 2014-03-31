@@ -42,18 +42,49 @@ class SubmitException(ServiceException):
 class DifficultySubscription(Subscription):
     event = 'mining.set_difficulty'
     difficulty = 1
+    f = None
     
     # @classmethod
-    # def on_new_difficulty(cls, new_difficulty):
-    #     cls.difficulty = new_difficulty
-    #     cls.emit(new_difficulty)
-
-    def on_new_difficulty(self, new_difficulty):
+    def on_new_difficulty(self, new_difficulty, **kwargs):
         self.difficulty = new_difficulty
-        self.emit(new_difficulty)
-    
+        self.emit(new_difficulty, **kwargs)
+
+    def emit(self, *args, **kwargs):
+        '''Shortcut for emiting this event to all subscribers.'''
+        if not hasattr(self, 'event'):
+            raise Exception("Subscription.emit() can be used only for subclasses with filled 'event' class variable.")
+        return self.f.pubsub.emit(self.event, *args, **kwargs)
+
     def after_subscribe(self, *args):
-        self.emit_single(self.difficulty)
+        self.emit_single(self.difficulty, f=self.f)
+
+    def emit_single(self, *args, **kwargs):
+        '''Perform emit of this event just for current subscription.'''
+        # log.info('difficulty subscription - emit single')
+        # log.info('mining subscription - emit single')
+        # log.info('mining subscription - emit single')
+        # log.info('mining subscription - emit single')
+        conn = self.connection_ref()
+        if conn == None:
+            # Connection is closed
+            return
+        f = kwargs.get('f', None)
+        f = self.f
+        try:
+            if f:
+                ident = conn.get_ident()
+                # log.info(ident)
+                # log.info(f.users)
+                if conn.get_ident() in f.users:
+                    payload = self.process(*args, **kwargs)
+                    if payload:
+                        if isinstance(payload, (tuple, list)):
+                            conn.writeJsonRequest(self.event, payload, is_notification=True)
+                            self.after_emit(*args, **kwargs)
+                        else:
+                            raise Exception("Return object from process() method must be list or None")
+        except AttributeError:
+            i = 1
 
 
 class MiningSubscription(Subscription):
@@ -114,37 +145,27 @@ class MiningSubscription(Subscription):
 
     def emit_single(self, *args, **kwargs):
         '''Perform emit of this event just for current subscription.'''
-        # log.info('mining subscription - emit single')
-        # log.info('mining subscription - emit single')
-        # log.info('mining subscription - emit single')
-        # log.info('mining subscription - emit single')
         conn = self.connection_ref()
         if conn == None:
             # Connection is closed
             return
         f = kwargs.get('f', None)
+        f = self.f
         try:
             if f:
                 ident = conn.get_ident()
-                log.info(ident)
-                log.info(f.users)
-                if conn.get_ident() not in f.users:
-                    # log.info('user is not subscribed to current pool')
-                    # log.info('user is not subscribed to current pool')
-                    log.info("user is not subscribed in '%s:%d'spool" % (f.main_host[0], f.main_host[1]))
-                else:
+                # log.info(ident)
+                # log.info(f.users)
+                if conn.get_ident() in f.users:
                     payload = self.process(*args, **kwargs)
                     if payload != None:
-                        # log.info('payload')
-                        # log.info(payload)
-                        # log.info('payload')
                         if isinstance(payload, (tuple, list)):
                             conn.writeJsonRequest(self.event, payload, is_notification=True)
                             self.after_emit(*args, **kwargs)
                         else:
                             raise Exception("Return object from process() method must be list or None")
         except AttributeError:
-            print('qwe')
+            i = 1
 
 
 class StratumProxyService(GenericService):
@@ -194,11 +215,11 @@ class StratumProxyService(GenericService):
         f.extranonce2_size = extranonce2_size
 
     @classmethod
-    def _get_unused_tail(cls, f):
+    def _get_unused_tail(self, f):
         '''Currently adds only one byte to extranonce1,
         limiting proxy for up to 255 connected clients.'''
 
-        for _ in range(256): # 0-255
+        for _ in range(256):  # 0-255
             f.tail_iterator += 1
             f.tail_iterator %= 255
 
@@ -268,17 +289,18 @@ class StratumProxyService(GenericService):
         # log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
         # log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
         # log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
-        # log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
+        log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
+        log.info(self._cp.new_users)
         if self.connection_ref().get_ident() in self._cp.new_users:
             subs_keys = self._cp.new_users[self.connection_ref().get_ident()]
-            # log.info(subs_keys)
+            log.info(subs_keys)
             subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription, subs_keys[0])[0]
             # log.info(subs1)
             subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription, subs_keys[1])[0]
             # log.info(subs2)
             tail = subs_keys[2]
             self._cp.new_users.pop(self.connection_ref().get_ident())
-            database.activate_user(proxyusername, f.conn_name)
+            database.activate_user_worker(pool_worker['username'], pool_worker['password'], f.conn_name)
             f.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
             # f.usernames[proxyusername][self.connection_ref().get_ident()] = f.users[self.connection_ref().get_ident()]
             if proxyusername not in f.usernames:
@@ -294,12 +316,17 @@ class StratumProxyService(GenericService):
                 f.pool.usernames[proxyusername]['connections'] += [self.connection_ref().get_ident(), ]
             # f.pool.usernames[proxyusername] += [self.connection_ref().get_ident(), ]
             f.pool.connections.set(self.connection_ref().get_ident(), proxyusername)
-        result = (yield f.rpc('mining.authorize', [pool_worker['username'], pool_worker['password']]))
         if self.connection_ref().get_ident() in self._cp.new_users:
-            f.difficulty_subscription.on_new_difficulty(f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
+            # f.difficulty_subscription.on_new_difficulty(f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
+            f.difficulty_subscription.emit_single(f.difficulty_subscription.difficulty, f=f)
             # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
-            f.job_registry.set_difficulty(f.difficulty_subscription.difficulty)
-        # log.info(result)
+            # f.job_registry.set_difficulty(f.difficulty_subscription.difficulty)
+        result = (yield f.rpc('mining.authorize', [pool_worker['username'], pool_worker['password']]))
+        log.info([pool_worker['username'], pool_worker['password']])
+        log.info(proxyusername)
+        log.info(f.main_host)
+        log.info(result)
+        log.info(result)
         defer.returnValue(result)
 
     # @defer.inlineCallbacks
@@ -364,7 +391,7 @@ class StratumProxyService(GenericService):
         port = self.connection_ref().transport.getPeer().port
             # if self.cp:
         # log.info(args)
-        log.info('ip=' + str(ip) + '  port=' + str(port))
+        # log.info('ip=' + str(ip) + '  port=' + str(port))
         # log.info('subscribe start')
         # log.info(self.connection_ref().get_ident())
         self.unsubscribed_users[self.connection_ref().get_ident()] = False
@@ -405,7 +432,7 @@ class StratumProxyService(GenericService):
                 # log.info(subs2)
                 self._cp.new_users[self.connection_ref().get_ident()] = (subs1[1], subs2[1], tail, extranonce2_size)
                 # log.info(self._cp.new_users[self.connection_ref().get_ident()])
-                # log.info(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
+                log.info(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
                 # log.info('new users tail: ' + str(tail))
                 # defer.returnValue(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
                 # f.pubsub.unsubscribe(self.connection_ref())
@@ -539,19 +566,19 @@ class StratumProxyService(GenericService):
         log.info(str(job_id) + '   ' + str(worker_name) + '   ' + str(extranonce2))
         # log.info(str(job_id) + '   ' + str(worker_name) + '   ' + str(extranonce2))
         try:
-            log.info('submitting: ' + str(self.connection_ref().get_ident()) + '  --  ' + str(tail))
+            log.info('submitting: ' + str(self.connection_ref().get_ident()) + '  --  ' + str(tail) + '  --  ' + str(extranonce2))
             result = (yield f.rpc('mining.submit', [worker_name, job_id, tail+extranonce2, ntime, nonce]))
         except RemoteServiceException as exc:
             response_time = (time.time() - start) * 1000
+            database.increase_rejected_shares(worker_name, f.conn_name)
             log.info("[%dms] Share from '%s' using '%s' worker on %s:%d REJECTED: %s" % (response_time, proxy_username, worker_name, f.main_host[0], f.main_host[1], str(exc)))
             database.update_job(job_id, worker_name, extranonce2, 4, False)
             raise SubmitException(*exc.args)
 
         response_time = (time.time() - start) * 1000
-        database.increase_accepted_shares(proxy_username, f.conn_name)
+        database.increase_accepted_shares(worker_name, f.conn_name)
         database.update_job(job_id, worker_name, extranonce2, 4, True)
         log.info("[%dms] Share from '%s' using '%s' worker on %s:%d accepted, diff %d" % (response_time, proxy_username, worker_name, f.main_host[0], f.main_host[1], f.difficulty_subscription.difficulty))
-        log.info(result)
         defer.returnValue(result)
 
     # @defer.inlineCallbacks
