@@ -150,8 +150,10 @@ class ClientMiningService(GenericEventHandler):
             f = self.cp.get_connection(ip=ip, port=port)
             new = list(f.main_host[::])
             # new = list(self.job_registry.f.main_host[::])
-            if hostname: new[0] = hostname
-            if port: new[1] = port
+            if hostname:
+                new[0] = hostname
+            if port:
+                new[1] = port
 
             log.info("Server asked us to reconnect to %s:%d" % tuple(new))
             f.reconnect(new[0], new[1], wait)
@@ -181,14 +183,6 @@ class ClientMiningService(GenericEventHandler):
         elif method == 'mining.get_temperature':
             return {} # TODO
 
-        elif method == 'mining.proxy_switch':
-            (host, port) = params[:2]
-            log.info('Switching to new proxy')
-            log.warning("Trying to connect to Stratum pool at %s:%d" % (host, port))
-            stratum_listener.StratumProxyService._new_switch_proxy(host, port)
-            log.info('Switching to new proxy finished')
-
         else:
             '''Pool just asked us for something which we don't support...'''
             log.error("Unhandled method %s with params %s" % (method, params))
-

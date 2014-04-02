@@ -2,7 +2,7 @@ from sqlalchemy import schema, create_engine
 from sqlalchemy.orm import sessionmaker
 import stratum
 from model import models
-dbEngine = create_engine('mysql+mysqldb://root:jfdojfoed8@localhost/NewMultiPool', echo=False)
+dbEngine = create_engine('mysql+mysqldb://root:jfdojfoed8@localhost/MultiPool', echo=False)
 Session = sessionmaker(bind=dbEngine)
 session = Session()
 log = stratum.logger.get_logger('proxy')

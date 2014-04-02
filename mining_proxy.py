@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 '''
     Stratum mining proxy
-    Copyright (C) 2012 Marek Palatinus <info@bitcoin.cz>
+    Copyright (C) 2012 Marek Palatinus <slush@satoshilabs.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -85,8 +85,9 @@ def parse_args():  # https://www.btcguild.com/new_protocol.php
                         help='Override default switch periodicity.')
     parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', help='Make output more quiet')
     parser.add_argument('-i', '--pid-file', dest='pid_file', type=str, help='Store process pid to the file')
+    parser.add_argument('-l', '--log-file', dest='log_file', type=str, help='Log to specified file')
+    parser.add_argument('-st', '--scrypt-target', dest='scrypt_target', action='store_true', help='Calculate targets for scrypt algorithm')
     return parser.parse_args()
-
 
 from stratum import settings
 
@@ -102,7 +103,24 @@ if __name__ == '__main__':
     elif args.verbose:
         settings.DEBUG = True
         settings.LOGLEVEL = 'DEBUG'
+    if args.log_file:
+        settings.LOGFILE = args.log_file
 
+from twisted.internet import reactor, defer
+from stratum.socket_transport import SocketTransportFactory, SocketTransportClientFactory
+from stratum.services import ServiceEventHandler
+from twisted.web.server import Site
+
+from mining_libs import stratum_listener
+from mining_libs import getwork_listener
+from mining_libs import client_service
+from mining_libs import jobs
+from mining_libs import worker_registry
+from mining_libs import multicast_responder
+from mining_libs import version
+from mining_libs import utils
+
+import stratum.logger
 log = stratum.logger.get_logger('proxy')
 
 
@@ -635,14 +653,15 @@ def main(args):
                         cmd=args.blocknotify_cmd,
                         no_midstate=args.no_midstate,
                         real_target=args.real_target,
-                        use_old_target=args.old_target
+                        use_old_target=args.old_target,
+                        scrypt_target=args.scrypt_target,
     )
     client_service.ClientMiningService.set_cp(cp)
     # Connect to Stratum pool
     log.info(args.host + ':' + str(args.port))
     database.deactivate_all_users()
-    cp.init_all_pools()
-    # cp.init_one_pool()
+    # cp.init_all_pools()
+    cp.init_one_pool()
     # f = cp.get_connection(host=args.host, port=args.port)
     # log.info(f)
     # f = SocketTransportClientFactory(args.host, args.port,

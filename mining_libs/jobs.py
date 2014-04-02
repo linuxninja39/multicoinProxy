@@ -61,7 +61,7 @@ class Job(object):
         return self.extranonce2
 
     def build_coinbase(self, extranonce):
-        return self.coinb1_bin + extranonce + self.coinb2_bin
+        return self.coinb1_bin + extranonce + self.extranonce2 + self.coinb2_bin
     
     def build_merkle_root(self, coinbase_hash):
         merkle_root = coinbase_hash
@@ -78,11 +78,13 @@ class Job(object):
         r += binascii.hexlify(struct.pack(">I", nonce))
         r += '000000800000000000000000000000000000000000000000000000000000000000000000000000000000000080020000' # padding    
         return r            
-        
+
+
 class JobRegistry(object):   
-    def __init__(self, f, cmd, no_midstate, real_target, use_old_target=False):
+    def __init__(self, f, cmd, no_midstate, real_target, use_old_target=False, scrypt_target=False):
         self.f = f
         self.cmd = cmd # execute this command on new block
+        self.scrypt_target = scrypt_target # calculate target for scrypt algorithm instead of sha256
         self.no_midstate = no_midstate # Indicates if calculate midstate for getwork
         self.real_target = real_target # Indicates if real stratum target will be propagated to miners
         self.use_old_target = use_old_target # Use 00000000fffffff...f instead of correct 00000000ffffffff...0 target for really old miners
@@ -108,7 +110,8 @@ class JobRegistry(object):
         # log.info('execute_cmd')
         # log.info(prevhash)
         # log.info(self.cmd)
-        return subprocess.Popen(self.cmd.replace('%s', prevhash), shell=True)
+        if self.cmd:
+            return subprocess.Popen(self.cmd.replace('%s', prevhash), shell=True)
 
     def set_extranonce(self, extranonce1, extranonce2_size):
         # log.info('setting extanonces for %s:%d' % (self.f.main_host[0], self.f.main_host[1]))
@@ -126,7 +129,10 @@ class JobRegistry(object):
         # log.info(self.f.extranonce2_size)
 
     def set_difficulty(self, new_difficulty):
-        dif1 = 0x00000000ffff0000000000000000000000000000000000000000000000000000 
+        if self.scrypt_target:
+            dif1 = 0x0000ffff00000000000000000000000000000000000000000000000000000000
+        else:
+            dif1 = 0x00000000ffff0000000000000000000000000000000000000000000000000000
         self.target = int(dif1 / new_difficulty)
         self.target_hex = binascii.hexlify(utils.uint256_to_str(self.target))
         self.difficulty = new_difficulty

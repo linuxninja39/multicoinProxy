@@ -91,6 +91,7 @@ class ConnectionPool():
     _connections = {}  # Dictionary of all connected pools
     debug = False
     proxy = None
+    scrypt_target = None
     event_handler = None
     job_registry = None
     workers = None
@@ -107,9 +108,10 @@ class ConnectionPool():
 
     def __init__(self, debug,
                  # proxy,
-                 cmd, no_midstate, real_target, use_old_target):
+                 cmd, no_midstate, real_target, use_old_target, scrypt_target):
         self.debug = debug
         # self.proxy = proxy
+        self.scrypt_target = scrypt_target
         self.cmd = cmd
         # self.event_handler = event_handler
         self.no_midstate = no_midstate
@@ -192,7 +194,8 @@ class ConnectionPool():
                                                                        cmd=self.cmd,
                                                                        no_midstate=self.no_midstate,
                                                                        real_target=self.real_target,
-                                                                       use_old_target=self.use_old_target
+                                                                       use_old_target=self.use_old_target,
+                                                                       scrypt_target=self.scrypt_target,
         )
         self._connections[conn_name].workers = worker_registry.WorkerRegistry(self._connections[conn_name])
         self._connections[conn_name].workers.set_host(host, port)
@@ -222,8 +225,9 @@ class ConnectionPool():
 
     def get_pool_by_ip(self, ip):
         for conn_name in self._connections:
-            # log.info(self._connections[conn_name].ip + '------' + ip)
+            log.info(self._connections[conn_name].ip + '------' + ip)
             if self._connections[conn_name].ip == ip:
+                log.info('returning:  ' + str(conn_name))
                 return conn_name
         pools = database.get_pools()
         import socket

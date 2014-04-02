@@ -30,6 +30,13 @@ from mining_libs.user_mapper import UserMapper
 
 log = stratum.logger.get_logger('proxy')
 
+def var_int(i):
+    if i <= 0xff:
+        return struct.pack('>B', i)
+    elif i <= 0xffff:
+        return struct.pack('>H', i)
+    raise Exception("number is too big")
+
 
 class UpstreamServiceException(ServiceException):
     code = -2
@@ -43,7 +50,7 @@ class DifficultySubscription(Subscription):
     event = 'mining.set_difficulty'
     difficulty = 1
     f = None
-    
+
     # @classmethod
     def on_new_difficulty(self, new_difficulty, **kwargs):
         self.difficulty = new_difficulty
@@ -90,9 +97,9 @@ class DifficultySubscription(Subscription):
 class MiningSubscription(Subscription):
     '''This subscription object implements
     logic for broadcasting new jobs to the clients.'''
-    
+
     event = 'mining.notify'
-    
+
     last_broadcast = None
     f = None
     # @classmethod
@@ -105,7 +112,7 @@ class MiningSubscription(Subscription):
             if subs.connection_ref():
                 if subs.connection_ref().transport:
                     subs.connection_ref().transport.loseConnection()
-        
+
     # @classmethod
     # def on_template(cls, job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs):
     #     '''Push new job to subscribed clients'''
@@ -119,18 +126,18 @@ class MiningSubscription(Subscription):
         # log.info(id(self))
         self.last_broadcast = (job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
         self.emit(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs, **kwargs)
-        
+
     def _finish_after_subscribe(self, result, f):
         '''Send new job to newly subscribed client'''
-        try:        
+        try:
             (job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, _) = self.last_broadcast
         except Exception:
             log.error("Template not ready yet")
             return result
-        
+
         self.emit_single(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, True, f=f)
         return result
-             
+
     def after_subscribe(self, f, *args):
         '''This will send new job to the client *after* he receive subscription details.
         on_finish callback solve the issue that job is broadcasted *during*
@@ -173,14 +180,14 @@ class StratumProxyService(GenericService):
     service_vendor = 'mining_proxy'
     is_default = True
     userMapper = UserMapper()
-    
+
     _f = None  # Factory of upstream Stratum connection
     extranonce1 = None
     extranonce2_size = None
     tail_iterator = 0
     registered_tails = []
     unsubscribed_users = {}
-    
+
     @classmethod
     def _set_upstream_factory(cls, f):
         cls._f = f
@@ -216,25 +223,30 @@ class StratumProxyService(GenericService):
 
     @classmethod
     def _get_unused_tail(self, f):
-        '''Currently adds only one byte to extranonce1,
-        limiting proxy for up to 255 connected clients.'''
+        '''Currently adds up to two bytes to extranonce1,
+        limiting proxy for up to 65535 connected clients.'''
 
-        for _ in range(256):  # 0-255
+        for _ in range(0, 0xffff):  # 0-65535
             f.tail_iterator += 1
-            f.tail_iterator %= 255
+            f.tail_iterator %= 0xffff
 
             # Zero extranonce is reserved for getwork connections
             if f.tail_iterator == 0:
                 f.tail_iterator += 1
 
-            tail = binascii.hexlify(chr(f.tail_iterator))
+            # var_int throws an exception when input is >= 0xffff
+            tail = var_int(f.tail_iterator)
+            tail_len = len(tail)
+
+            # tail = binascii.hexlify(chr(f.tail_iterator))
 
             if tail not in f.registered_tails:
                 f.registered_tails.append(tail)
-                return (tail, f.extranonce2_size-1)
-            
+                return (binascii.hexlify(tail), f.extranonce2_size - tail_len)
+                # return (tail, f.extranonce2_size-1)
+
         raise Exception("Extranonce slots are full, please disconnect some miners!")
-    
+
     def _drop_tail(self, result, tail, f):
         if tail in f.registered_tails:
             f.registered_tails.remove(tail)
@@ -438,7 +450,8 @@ class StratumProxyService(GenericService):
                 # f.pubsub.unsubscribe(self.connection_ref())
                 f.pubsub.unsubscribe(self.connection_ref(), subscription=f.difficulty_subscription, key=subs1[1])
                 f.pubsub.unsubscribe(self.connection_ref(), subscription=f.mining_subscription, key=subs2[1])
-                defer.returnValue(((subs1, subs2),) + (tail, extranonce2_size))
+                # defer.returnValue(((subs1, subs2),) + (tail, extranonce2_size))
+                defer.returnValue(((subs1, subs2),) + ('', extranonce2_size+1))
                 # defer.returnValue(((subs1, subs2),) + (tail, 4))
         else:
             f = self._cp.get_connection(ip=ip, port=port)
@@ -567,7 +580,7 @@ class StratumProxyService(GenericService):
         # log.info(str(job_id) + '   ' + str(worker_name) + '   ' + str(extranonce2))
         try:
             log.info('submitting: ' + str(self.connection_ref().get_ident()) + '  --  ' + str(tail) + '  --  ' + str(extranonce2))
-            result = (yield f.rpc('mining.submit', [worker_name, job_id, tail+extranonce2, ntime, nonce]))
+            result = (yield f.rpc('mining.submit', [worker_name, job_id, extranonce2, ntime, nonce]))
         except RemoteServiceException as exc:
             response_time = (time.time() - start) * 1000
             database.increase_rejected_shares(worker_name, f.conn_name)
@@ -620,6 +633,9 @@ class StratumProxyService(GenericService):
         # safe to add whitespaces
         return '\x00' * missing_len + extranonce2_bin
 
+    def get_transactions(self, *args):
+        log.warn("mining.get_transactions isn't supported by proxy")
+        return []
 
 """
 Notes about extranonce2
