@@ -35,26 +35,26 @@ def get_worker(host, port, username, pool_id, password=None):
         return None
 
 
-# def get_worker(host, port, username, pool_id, password=None):
-#     worker = session.execute(
-#         "\
-#         SELECT DISTINCT Worker.id, Worker.name, Worker.password FROM Worker \
-#         JOIN WorkerService ON WorkerService.serviceId = :pool_id \
-#         JOIN Worker ON Worker.id = WorkerService.workerId \
-#         ",
-#         {'host': host, 'port': port, 'username': username, 'pool_id': str(pool_id)}
-#     ).first()
-#     # log.info(worker)
-#     if worker:
-#         if password:
-#             if password == worker['userpassword']:
-#                 return {'remoteUsername': worker['name'], 'remotePassword': worker['password']}
-#             else:
-#                 return None
-#         else:
-#             return {'remoteUsername': worker['name'], 'remotePassword': worker['password']}
-#     else:
-#         return None
+def old_get_worker(host, port, username, pool_id, password=None):
+    worker = session.execute(
+        "\
+        SELECT DISTINCT Worker.id, Worker.name, Worker.password FROM Worker \
+        JOIN WorkerService ON WorkerService.serviceId = :pool_id \
+        JOIN Worker ON Worker.id = WorkerService.workerId \
+        ",
+       {'host': host, 'port': port, 'username': username, 'pool_id': str(pool_id)}
+    ).first()
+    # log.info(worker)
+    if worker:
+        if password:
+            if password == worker['userpassword']:
+                return {'remoteUsername': worker['name'], 'remotePassword': worker['password']}
+            else:
+                return None
+        else:
+            return {'remoteUsername': worker['name'], 'remotePassword': worker['password']}
+    else:
+        return None
 
 
 def get_best_coin(host):

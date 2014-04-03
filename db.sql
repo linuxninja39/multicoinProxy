@@ -126,6 +126,7 @@ CREATE TABLE `Service` (
   `serviceTypeId` int(10) unsigned NOT NULL,
   `port` int(10) unsigned NOT NULL,
   `hostId` int(10) unsigned NOT NULL DEFAULT '0',
+  `active` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `serviceTypeId` (`serviceTypeId`),
   KEY `hostId` (`hostId`),
@@ -255,6 +256,8 @@ CREATE TABLE `WorkerService` (
   `workerId` int(10) unsigned NOT NULL,
   `serviceId` int(10) unsigned NOT NULL,
   `active` tinyint(4) NOT NULL DEFAULT '0',
+  `accepted` int(10) unsigned NOT NULL DEFAULT '0',
+  `rejected` int(10) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `workerId` (`workerId`,`serviceId`),
   KEY `serviceId` (`serviceId`),
@@ -279,8 +282,8 @@ CREATE TABLE `tempJob` (
   `worker_name` varchar(200),
   `extranonce2_size_user` int(10) unsigned,
   `extranonce2_size_pool` int(10) unsigned,
-  `extranonce1` int(10) unsigned,
-  `extranonce2` int(10) unsigned,
+  `extranonce1` VARCHAR (200),
+  `extranonce2` VARCHAR (200),
   `accepted` tinyint(4) unsigned DEFAULT '0',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
