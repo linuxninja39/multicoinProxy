@@ -135,7 +135,7 @@ class MiningSubscription(Subscription):
             log.error("Template not ready yet")
             return result
 
-        self.emit_single(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, True, f = f)
+        self.emit_single(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, True, f=f)
         return result
 
     def after_subscribe(self, f, *args):
@@ -166,7 +166,7 @@ class MiningSubscription(Subscription):
                 if conn.get_ident() in f.users:
                     payload = self.process(*args, **kwargs)
                     if payload != None:
-                        if isinstance( payload, (tuple, list)):
+                        if isinstance(payload, (tuple, list)):
                             conn.writeJsonRequest(self.event, payload, is_notification=True)
                             self.after_emit(*args, **kwargs)
                         else:
@@ -312,7 +312,7 @@ class StratumProxyService(GenericService):
             # log.info(subs2)
             tail = subs_keys[2]
             self._cp.new_users.pop(self.connection_ref().get_ident())
-            database.activate_user_worker( pool_worker['username'], pool_worker['password'], f.conn_name)
+            database.activate_user_worker(pool_worker['username'], pool_worker['password'], f.conn_name)
             f.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
             # f.usernames[proxyusername][self.connection_ref().get_ident()] = f.users[self.connection_ref().get_ident()]
             if proxyusername not in f.usernames:
@@ -330,7 +330,7 @@ class StratumProxyService(GenericService):
             f.pool.connections.set(self.connection_ref().get_ident(), proxyusername)
         if self.connection_ref().get_ident() in self._cp.new_users:
             # f.difficulty_subscription.on_new_difficulty(f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
-            f.difficulty_subscription.emit_single( f.difficulty_subscription.difficulty, f=f)
+            f.difficulty_subscription.emit_single(f.difficulty_subscription.difficulty, f=f)
             # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
             # f.job_registry.set_difficulty(f.difficulty_subscription.difficulty)
         result = (yield f.rpc('mining.authorize', [pool_worker['username'], pool_worker['password']]))
@@ -341,7 +341,6 @@ class StratumProxyService(GenericService):
         log.info(result)
         defer.returnValue(result)
 
-    # @defer.inlineCallbacks
     # @defer.inlineCallbacks
     # def authorize(self, worker_name, worker_password, *args):
     #     # log.info(worker_name + ' ' + worker_password)
@@ -399,7 +398,7 @@ class StratumProxyService(GenericService):
         # log.info(self.connection_ref().get_session())
         # log.info(self._cp.workers.authorized)
         # log.info(self._cp.workers.unauthorized)
-        # log.info('qweqweqwee')
+        # log.info('qweqweqwe')
         ip = self.connection_ref().proxied_ip or self.connection_ref().transport.getPeer().host
         port = self.connection_ref().transport.getPeer().port
             # if self.cp:
@@ -410,7 +409,7 @@ class StratumProxyService(GenericService):
         self.unsubscribed_users[self.connection_ref().get_ident()] = False
         # log.info(self.unsubscribed_users)
         # log.info('subscribe end')
-        if port > 4000:
+        if port > 10000:
             for conn in self._cp._connections:
                 f = self._cp._connections[conn]
                 # log.info('ffffffffffff')
@@ -462,7 +461,7 @@ class StratumProxyService(GenericService):
                 yield f.on_connect
 
             # if self._f.client == None or not self._f.client.connected:
-            if not f.client or not f.client.connected:
+            if f.client == None or not f.client.connected:
                 raise UpstreamServiceException("Upstream not connected")
 
             if f.extranonce1 == None:
@@ -535,7 +534,7 @@ class StratumProxyService(GenericService):
         if f is None:
             defer.returnValue(False)
         proxy_username = worker_name
-        worker = database.get_worker(host=f.main_host[0], port=f.main_host[1], username=worker_name, pool_id=str(f.conn_name))
+        worker = database.get_worker(host=f.main_host[0], port=f.main_host[1], proxy_username=worker_name, pool_id=str(f.conn_name))
         if worker:
             worker_name = worker['remoteUsername']
         else:
@@ -581,6 +580,7 @@ class StratumProxyService(GenericService):
         # log.info(str(job_id) + '   ' + str(worker_name) + '   ' + str(extranonce2))
         try:
             log.info('submitting: ' + str(self.connection_ref().get_ident()) + '  --  ' + str(tail) + '  --  ' + str(extranonce2))
+            log.info([worker_name, job_id, extranonce2, ntime, nonce])
             result = (yield f.rpc('mining.submit', [worker_name, job_id, extranonce2, ntime, nonce]))
         except RemoteServiceException as exc:
             response_time = (time.time() - start) * 1000
@@ -592,7 +592,7 @@ class StratumProxyService(GenericService):
         response_time = (time.time() - start) * 1000
         database.increase_accepted_shares(worker_name, f.conn_name)
         database.update_job(job_id, worker_name, extranonce2, 4, True)
-        log.info("[%dms] Share from '%s' using '%s' worker on %s:%d accepted, diff %d" % (response_time, proxy_username, worker_name, f.main_host[0], f.main_host[1],  f.difficulty_subscription.difficulty))
+        log.info("[%dms] Share from '%s' using '%s' worker on %s:%d accepted, diff %d" % (response_time, proxy_username, worker_name, f.main_host[0], f.main_host[1], f.difficulty_subscription.difficulty))
         defer.returnValue(result)
 
     # @defer.inlineCallbacks
@@ -646,7 +646,4 @@ extranonce2_bin = struct.pack('>I', new_extranonce2)
 add/remove zeroes, then and get final_extranonce2
 extranonce2 = struct.unpack('>', final_extranonce2)
 then format(extranonce2, 'x')
-
-
-
 """

@@ -443,7 +443,7 @@ def switch_proxy(cp, periodicity, switch=False):
         # log.info('switching process')
         # log.info('switching process')
         # log.info('switching process')
-        switch_users = database.get_list_of_switch_users()
+        switch_users = database.get_list_of_switch_users()  # ToDo Rewrite SQL according to new database scheme
         log.info(switch_users)
         # for user in switch_users:
         #     log.info(user['pool_id'])
@@ -585,7 +585,7 @@ def test_switch_proxy(cp, periodicity, switch=False):
                         log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
                         # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
                         # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
-                        database.activate_user_worker(new_user['worker_username'], new_user['worker_password'], new_user['pool_id'])
+                        database.activate_user_worker(new_user['worker_username'], new_user['worker_password'], new_user['pool_id'])  # ToDo Rewrite SQL according to new database scheme
                         if not new_f:
                             new_f = cp.get_connection(new_user['pool_id'])
                         subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
@@ -659,7 +659,7 @@ def main(args):
     client_service.ClientMiningService.set_cp(cp)
     # Connect to Stratum pool
     log.info(args.host + ':' + str(args.port))
-    database.deactivate_all_users()
+    database.deactivate_all_users()  # ToDo Rewrite SQL according to new database scheme
     # cp.init_all_pools()
     cp.init_one_pool()
     # f = cp.get_connection(host=args.host, port=args.port)
