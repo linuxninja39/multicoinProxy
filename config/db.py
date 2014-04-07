@@ -16,7 +16,7 @@ def db_parse_args():
     db_parser.add_argument('-a', '--add', dest='add', type=str, help='Add row to table')
     return db_parser.parse_args()
 
-dbEngine = create_engine('mysql+mysqldb://root:jfdojfoed8@localhost/NewMultiPool', echo=True)
+dbEngine = create_engine('mysql+mysqldb://root:jfdojfoed8@localhost/MultiPool', echo=True)
 
 if __name__ == '__main__':
     db_args = db_parse_args()

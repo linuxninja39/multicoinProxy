@@ -2,7 +2,7 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String
 
-Base = declarative_base()
+from base import Base
 
 class Name(Base):
     __tablename__ = 'Name'
@@ -11,7 +11,7 @@ class Name(Base):
     name = Column(String(100))
 
     def __init__(self, name):
-        self.email = email
+        self.name = name
 
     def __repr__(self):
         return "<%s('%s','%s')>" % (self.__tablename__, self.name)

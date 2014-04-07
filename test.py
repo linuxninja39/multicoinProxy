@@ -16,32 +16,32 @@ import pprint
 
 def main():
 
-	session = Session()
-	user = Tables['User']()
-	user.username = 'linuxninja39'
-	user.password = 'password'
+    session = Session()
+    user = Tables['User']()
+    user.username = 'linuxninja39'
+    user.password = 'password'
 
-	User = Tables['User']
-	Worker = Tables['Worker']
-	Coin = Tables['Coin']
-	Host = Tables['Host']
-	Service = Tables['Service']
-	
-	res = session\
-		.query(User.username, Worker.name, Coin.name, Host.name, Service.port)\
-		.join(Worker)\
-		.join(Tables['WorkerCoin'])\
-		.join(Tables['Coin'])\
-		.join(Tables['CoinService'])\
-		.join(Tables['Service'])\
-		.join(Tables['Host'])\
-		.filter(User.username==user.username)\
-		.order_by(Coin.profitability.desc())\
-		.first()
+    User = Tables['User']
+    Worker = Tables['Worker']
+    Coin = Tables['Coin']
+    Host = Tables['Host']
+    Service = Tables['Service']
 
-	pprint.pprint(res)
+    res = session\
+        .query(User.username, Worker.name, Coin.name, Host.name, Service.port)\
+        .join(Worker)\
+        .join(Tables['WorkerCoin'])\
+        .join(Tables['Coin'])\
+        .join(Tables['CoinService'])\
+        .join(Tables['Service'])\
+        .join(Tables['Host'])\
+        .filter(User.username==user.username)\
+        .order_by(Coin.profitability.desc())\
+        .first()
 
-	worker = session.query(Worker).first();
+    pprint.pprint(res)
+
+    worker = session.query(Worker).first();
 
 
 if __name__ == "__main__":
