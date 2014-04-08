@@ -516,8 +516,8 @@ def switch_proxy(cp, periodicity, switch=False):
                             f.users.pop(conn_ref.get_ident(), None)
                             uindex = f.usernames[user['proxy_username']]['connections'].index(usr)
                             f.usernames[user['proxy_username']]['connections'] = f.usernames[user['proxy_username']]['connections'][:uindex] + f.usernames[user['proxy_username']]['connections'][uindex+1:]
-                            if new_f.client == None or not new_f.client.connected:
-                                yield f.on_connect()
+                            # if new_f.client == None or not new_f.client.connected:
+                            #     yield f.on_connect()
     switch = True
     reactor.callLater(periodicity, switch_proxy, cp=cp, switch=switch, periodicity=periodicity)
 
