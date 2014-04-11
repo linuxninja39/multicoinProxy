@@ -82,7 +82,9 @@ class DifficultySubscription(Subscription):
                 ident = conn.get_ident()
                 # log.info(ident)
                 # log.info(f.users)
-                if conn.get_ident() in f.users:
+                if conn.get_ident() in f.cp.list_connections and \
+                                'pool_name' in f.cp.list_connections[conn.get_ident()] and \
+                                f.cp.list_connections[conn.get_ident()]['pool_name'] == f.conn_name:
                     payload = self.process(*args, **kwargs)
                     if payload:
                         if isinstance(payload, (tuple, list)):
@@ -163,7 +165,9 @@ class MiningSubscription(Subscription):
                 ident = conn.get_ident()
                 # log.info(ident)
                 # log.info(f.users)
-                if conn.get_ident() in f.users:
+                if conn.get_ident() in f.cp.list_connections and \
+                                'pool_name' in f.cp.list_connections[conn.get_ident()] and \
+                                f.cp.list_connections[conn.get_ident()]['pool_name'] == f.conn_name:
                     payload = self.process(*args, **kwargs)
                     if payload != None:
                         if isinstance(payload, (tuple, list)):
@@ -271,10 +275,26 @@ class StratumProxyService(GenericService):
     def authorize(self, proxyusername, password, *args):
         # log.info(worker_name + ' ' + worker_password)
         # worker = self.userMapper.getUser(worker_name, worker_password, self._f.main_host[0] + ':' + str(self._f.main_host[1]))
-        if self.connection_ref().get_ident() in self._cp.new_users:
+        if self.connection_ref().get_ident() in self._cp.list_connections:
+            if 'proxy username' in self._cp.list_connections[self.connection_ref().get_ident()]:
+                pool_worker = database.get_current_pool_and_worker_by_proxy_user(proxyusername, password)
+            else:
+                pool_id = self._cp.get_pool_by_proxy_username(proxyusername)
+                if pool_id:
+                    # log.info('pool_id was found')
+                    # log.info('pool_id was found')
+                    # log.info('pool_id was found')
+                    # log.info('pool_id was found')
+                    # log.info('pool_id was found')
+                    # log.info('pool_id was found')
+                    pool_worker = database.get_current_pool_and_worker_by_proxy_user_and_pool_id(proxyusername, password, pool_id)
+                else:
+                    pool_worker = database.get_best_pool_and_worker_by_proxy_user(proxyusername, password)
+        elif self.connection_ref().get_ident() in self._cp.new_users:
             pool_worker = database.get_best_pool_and_worker_by_proxy_user(proxyusername, password)
         else:
-            pool_worker = database.get_current_pool_and_worker_by_proxy_user(proxyusername, password)
+            # pool_worker = database.get_current_pool_and_worker_by_proxy_user(proxyusername, password)
+            pool_worker = database.get_best_pool_and_worker_by_proxy_user(proxyusername, password)
         # worker = database.get_worker(self._f.main_host[0], self._f.main_host[1], worker_name, worker_password)
         # log.info('authorize start')
         # log.info(self.connection_ref().get_ident())
@@ -282,7 +302,6 @@ class StratumProxyService(GenericService):
         if not pool_worker:
             log.info("User with local user/pass '%s:%s' doesn't have an account on our proxy" % (proxyusername, password))
             defer.returnValue(False)
-
         log.info("Local user/pass '%s:%s'. Remote user/pass '%s:%s' on '%s:%d' pool" % \
             (proxyusername, password, pool_worker['username'], pool_worker['password'], pool_worker['host'], pool_worker['port'])
         )
@@ -301,44 +320,110 @@ class StratumProxyService(GenericService):
         # log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
         # log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
         # log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
-        log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
-        log.info(self._cp.new_users)
-        if self.connection_ref().get_ident() in self._cp.new_users:
-            subs_keys = self._cp.new_users[self.connection_ref().get_ident()]
-            log.info(subs_keys)
-            subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription, subs_keys[0])[0]
+        # log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
+        # log.info(self._cp.list_connections)
+        # log.info(self.connection_ref().get_ident())
+        ###################################################################################################################################################
+        if self.connection_ref().get_ident() in self._cp.list_connections:
+            subs_keys = self._cp.list_connections[self.connection_ref().get_ident()]
+            # log.info(subs_keys)
+            subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription, subs_keys['subs1'])[0]
             # log.info(subs1)
-            subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription, subs_keys[1])[0]
+            subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription, subs_keys['subs2'])[0]
             # log.info(subs2)
-            tail = subs_keys[2]
-            self._cp.new_users.pop(self.connection_ref().get_ident())
+            tail = subs_keys['tail']
+            # self._cp.new_users.pop(self.connection_ref().get_ident())
+            # log.info('ACTIVATING USER IN DATABASE')
+            # log.info('ACTIVATING USER IN DATABASE')
+            # log.info('ACTIVATING USER IN DATABASE')
+            # log.info([pool_worker['username'], pool_worker['password'], f.conn_name])
+            # log.info('ACTIVATING USER IN DATABASE')
+            # log.info('ACTIVATING USER IN DATABASE')
+            # log.info('ACTIVATING USER IN DATABASE')
             database.activate_user_worker(pool_worker['username'], pool_worker['password'], f.conn_name)
-            f.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
+            tmp_dict = {
+                'proxy_username': proxyusername,
+                'proxy_password': password,
+                'pool_worker_username': pool_worker['username'],
+                'pool_worker_password': pool_worker['password'],
+                'pool_name': f.conn_name,
+                'conn_ref': self.connection_ref(),
+
+            }
+            self._cp.list_connections[self.connection_ref().get_ident()].update(tmp_dict)
+            # self._cp.list_connections[self.connection_ref().get_ident()]['proxy username'] = proxyusername
+            # self._cp.list_connections[self.connection_ref().get_ident()]['proxy_password'] = password
+            # self._cp.list_connections[self.connection_ref().get_ident()]['pool_worker_username'] = pool_worker['username']
+            # self._cp.list_connections[self.connection_ref().get_ident()]['pool_worker_password'] = pool_worker['password']
+            # self._cp.list_connections[self.connection_ref().get_ident()]['pool_name'] = f.conn_name
+            # self._cp.list_connections[self.connection_ref().get_ident()]['conn_ref'] = self.connection_ref()
+            if proxyusername not in self._cp.list_users[f.conn_name]:
+                self._cp.list_users[f.conn_name][proxyusername] = self._cp.list_connections[self.connection_ref().get_ident()]
+                if 'connections' not in self._cp.list_users[f.conn_name][proxyusername]:
+                    self._cp.list_users[f.conn_name][proxyusername].update({'connections':  []})
+                    self._cp.list_users[f.conn_name][proxyusername]['connections'] += [self.connection_ref().get_ident()]
+            # f.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
+            # f.cp.connection_users[f.conn_name][self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
             # f.usernames[proxyusername][self.connection_ref().get_ident()] = f.users[self.connection_ref().get_ident()]
-            if proxyusername not in f.usernames:
-                f.usernames[proxyusername] = {'conn_name': f.conn_name, 'connections': []}
-            if self.connection_ref().get_ident() not in f.usernames[proxyusername]['connections']:
-                f.usernames[proxyusername]['connections'] += [self.connection_ref().get_ident(), ]
-            f.connections.set(self.connection_ref().get_ident(), proxyusername)
-            f.pool.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
-            # f.pool.usernames[proxyusername] = f.pool.users[self.connection_ref().get_ident()]
-            if proxyusername not in f.pool.usernames:
-                f.pool.usernames[proxyusername] = {'conn_name': f.conn_name, 'connections': []}
-            if self.connection_ref().get_ident() not in f.pool.usernames[proxyusername]['connections']:
-                f.pool.usernames[proxyusername]['connections'] += [self.connection_ref().get_ident(), ]
-            # f.pool.usernames[proxyusername] += [self.connection_ref().get_ident(), ]
-            f.pool.connections.set(self.connection_ref().get_ident(), proxyusername)
-        if self.connection_ref().get_ident() in self._cp.new_users:
-            # f.difficulty_subscription.on_new_difficulty(f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
+            # if proxyusername not in f.usernames:
+            #     f.usernames[proxyusername] = {'conn_name': f.conn_name, 'connections': []}
+            # if self.connection_ref().get_ident() not in f.usernames[proxyusername]['connections']:
+            #     f.usernames[proxyusername]['connections'] += [self.connection_ref().get_ident(), ]
+            # f.connections.set(self.connection_ref().get_ident(), proxyusername)
+            # f.pool.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
+            # # f.pool.usernames[proxyusername] = f.pool.users[self.connection_ref().get_ident()]
+            # if proxyusername not in f.pool.usernames:
+            #     f.pool.usernames[proxyusername] = {'conn_name': f.conn_name, 'connections': []}
+            # if self.connection_ref().get_ident() not in f.pool.usernames[proxyusername]['connections']:
+            #     f.pool.usernames[proxyusername]['connections'] += [self.connection_ref().get_ident(), ]
+            # # f.pool.usernames[proxyusername] += [self.connection_ref().get_ident(), ]
+            # f.pool.connections.set(self.connection_ref().get_ident(), proxyusername)
             f.difficulty_subscription.emit_single(f.difficulty_subscription.difficulty, f=f)
-            # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
-            # f.job_registry.set_difficulty(f.difficulty_subscription.difficulty)
+        ###################################################################################################################################################
+        # if self.connection_ref().get_ident() in self._cp.new_users:
+        #     subs_keys = self._cp.new_users[self.connection_ref().get_ident()]
+        #     log.info(subs_keys)
+        #     subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription, subs_keys[0])[0]
+        #     # log.info(subs1)
+        #     subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription, subs_keys[1])[0]
+        #     # log.info(subs2)
+        #     tail = subs_keys[2]
+        #     self._cp.new_users.pop(self.connection_ref().get_ident())
+        #     # log.info('ACTIVATING USER IN DATABASE')
+        #     # log.info('ACTIVATING USER IN DATABASE')
+        #     # log.info('ACTIVATING USER IN DATABASE')
+        #     # log.info([pool_worker['username'], pool_worker['password'], f.conn_name])
+        #     # log.info('ACTIVATING USER IN DATABASE')
+        #     # log.info('ACTIVATING USER IN DATABASE')
+        #     # log.info('ACTIVATING USER IN DATABASE')
+        #     database.activate_user_worker(pool_worker['username'], pool_worker['password'], f.conn_name)
+        #     f.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
+        #     f.cp.connection_users[f.conn_name][self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
+        #     # f.usernames[proxyusername][self.connection_ref().get_ident()] = f.users[self.connection_ref().get_ident()]
+        #     if proxyusername not in f.usernames:
+        #         f.usernames[proxyusername] = {'conn_name': f.conn_name, 'connections': []}
+        #     if self.connection_ref().get_ident() not in f.usernames[proxyusername]['connections']:
+        #         f.usernames[proxyusername]['connections'] += [self.connection_ref().get_ident(), ]
+        #     f.connections.set(self.connection_ref().get_ident(), proxyusername)
+        #     f.pool.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
+        #     # f.pool.usernames[proxyusername] = f.pool.users[self.connection_ref().get_ident()]
+        #     if proxyusername not in f.pool.usernames:
+        #         f.pool.usernames[proxyusername] = {'conn_name': f.conn_name, 'connections': []}
+        #     if self.connection_ref().get_ident() not in f.pool.usernames[proxyusername]['connections']:
+        #         f.pool.usernames[proxyusername]['connections'] += [self.connection_ref().get_ident(), ]
+        #     # f.pool.usernames[proxyusername] += [self.connection_ref().get_ident(), ]
+        #     f.pool.connections.set(self.connection_ref().get_ident(), proxyusername)
+        # if self.connection_ref().get_ident() in self._cp.new_users:
+        #     # f.difficulty_subscription.on_new_difficulty(f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
+        #     f.difficulty_subscription.emit_single(f.difficulty_subscription.difficulty, f=f)
+        #     # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
+        #     # f.job_registry.set_difficulty(f.difficulty_subscription.difficulty)
         result = (yield f.rpc('mining.authorize', [pool_worker['username'], pool_worker['password']]))
-        log.info([pool_worker['username'], pool_worker['password']])
-        log.info(proxyusername)
-        log.info(f.main_host)
-        log.info(result)
-        log.info(result)
+        # log.info([pool_worker['username'], pool_worker['password']])
+        # log.info(proxyusername)
+        # log.info(f.main_host)
+        # log.info(result)
+        # log.info(result)
         defer.returnValue(result)
 
     # @defer.inlineCallbacks
@@ -409,7 +494,7 @@ class StratumProxyService(GenericService):
         self.unsubscribed_users[self.connection_ref().get_ident()] = False
         # log.info(self.unsubscribed_users)
         # log.info('subscribe end')
-        if port > 10000:
+        if port > 10000:  # Usually users, not pools, has port > 10000
             for conn in self._cp._connections:
                 f = self._cp._connections[conn]
                 # log.info('ffffffffffff')
@@ -442,9 +527,16 @@ class StratumProxyService(GenericService):
                 # log.info(subs1)
                 subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription)[0]
                 # log.info(subs2)
-                self._cp.new_users[self.connection_ref().get_ident()] = (subs1[1], subs2[1], tail, extranonce2_size)
+                self._cp.list_connections[self.connection_ref().get_ident()] = \
+                {
+                    'subs1': subs1[1],
+                    'subs2': subs2[1],
+                    'tail': tail,
+                    'extranonce2_size': extranonce2_size
+                }
+                # self._cp.new_users[self.connection_ref().get_ident()] = (subs1[1], subs2[1], tail, extranonce2_size)
                 # log.info(self._cp.new_users[self.connection_ref().get_ident()])
-                log.info(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
+                # log.info(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
                 # log.info('new users tail: ' + str(tail))
                 # defer.returnValue(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
                 # f.pubsub.unsubscribe(self.connection_ref())
@@ -540,7 +632,7 @@ class StratumProxyService(GenericService):
         else:
             # log.info('problem here')
             # log.info('problem here')
-            log.info('problem here')
+            # log.info('problem here')
             defer.returnValue(False)
         # log.info(worker_name)
         if f.client is None or not f.client.connected:
@@ -576,11 +668,11 @@ class StratumProxyService(GenericService):
         # log.info(extranonce2)
         start = time.time()
         # log.info(str(job_id) + '   ' + str(worker_name) + '   ' + str(extranonce2))
-        log.info(str(job_id) + '   ' + str(worker_name) + '   ' + str(extranonce2))
+        # log.info(str(job_id) + '   ' + str(worker_name) + '   ' + str(extranonce2))
         # log.info(str(job_id) + '   ' + str(worker_name) + '   ' + str(extranonce2))
         try:
-            log.info('submitting: ' + str(self.connection_ref().get_ident()) + '  --  ' + str(tail) + '  --  ' + str(extranonce2))
-            log.info([worker_name, job_id, extranonce2, ntime, nonce])
+            # log.info('submitting: ' + str(self.connection_ref().get_ident()) + '  --  ' + str(tail) + '  --  ' + str(extranonce2))
+            # log.info([worker_name, job_id, extranonce2, ntime, nonce])
             result = (yield f.rpc('mining.submit', [worker_name, job_id, extranonce2, ntime, nonce]))
         except RemoteServiceException as exc:
             response_time = (time.time() - start) * 1000

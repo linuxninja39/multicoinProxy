@@ -39,6 +39,10 @@ def new_on_connect(f):
         # log.info('subscribing')
         # log.info('subscribing')
         # log.info('subscribing')
+    if f.conn_name not in f.cp.list_users:
+        f.cp.list_users[f.conn_name] = {}
+    # if f.conn_name in f.cp.connection_users:
+    #     f.users = f.cp.connection_users[f.conn_name]
     (_, extranonce1, extranonce2_size) = (yield f.rpc('mining.subscribe', []))[:3]
     # log.info(extranonce1)
     # log.info(extranonce2_size)
@@ -48,10 +52,10 @@ def new_on_connect(f):
     # log.info(f.extranonce1)
     # log.info(f.extranonce2_size)
     stratum_listener.StratumProxyService._set_extranonce(f, extranonce1, extranonce2_size)
-    for user in f.new_users:
-        log.info('Authorizing %s:%s' % (str(user[0]), str(user[1])))
-        result = (f.rpc('mining.authorize', [user[0], user[1]]))
-        f.new_users.pop(f.new_users.index(user))
+    # for user in f.new_users:
+    #     log.info('Authorizing %s:%s' % (str(user[0]), str(user[1])))
+    #     result = (f.rpc('mining.authorize', [user[0], user[1]]))
+    #     f.new_users.pop(f.new_users.index(user))
     # log.info(f.extranonce1)
     # log.info(f.extranonce2_size)
 
@@ -104,7 +108,23 @@ class ConnectionPool():
     on_disconnect_callback = None
     users = {}
     usernames = {}
-    connections = Connections()  # For listing all connected users
+    connection_users = {}
+    """
+        list_connections contains
+        'subs1'
+        'subs2'
+        'tail'
+        'extranonce2_size'
+        'proxy_username'
+        'proxy_password'
+        'pool_worker_username'
+        'pool_worker_password'
+        'pool_name'
+        'conn_ref'
+    """
+    list_connections = {}  # For storing all connections, like 127.0.0.1:412sd34
+
+    list_users = {}  # For storing all users, separated by pool_id
 
     def __init__(self, debug,
                  # proxy,
@@ -135,9 +155,16 @@ class ConnectionPool():
                 pool = database.get_pool_id_by_host_and_port(host, port)
                 if pool:
                     conn_name = pool['id']
+        # log.info(self._connections.keys())
         if conn_name in self._connections.keys():
+            # log.info(conn_name)
+            # log.info('IN')
+            # log.info([self._connections.keys()])
             return self._connections[conn_name]
         else:
+            # log.info(conn_name)
+            # log.info('NOT IN')
+            # log.info([self._connections.keys()])
             return self._new_connection(
                 host=host,
                 port=port,
@@ -151,8 +178,8 @@ class ConnectionPool():
             port=None,
             ip=None
     ):
-        log.info("getConnection")
-        log.info(conn_name)
+        # log.info("getConnection")
+        # log.info(conn_name)
         if conn_name is None:
             if ip:
                 conn_name = self.get_pool_by_ip(ip)
@@ -174,19 +201,23 @@ class ConnectionPool():
             port,
             conn_name=None,
     ):
-        log.info('_new_connection')
-        log.info(host)
-        log.info(port)
-        log.info(conn_name)
-        log.info('_new_connection')
+        # log.info('_new_connection')
+        # log.info(host)
+        # log.info(port)
+        # log.info(conn_name)
+        # log.info('_new_connection')
         if conn_name is None:
             # log.info(host)
             # log.info(port)
             conn_name = database.get_pool_id_by_host_and_port(host, port)['id']
             # log.info(conn_name)
+        if conn_name not in self.connection_users:
+            self.connection_users[conn_name] = {}
 
+        if conn_name not in self.list_users:
+            self.list_users[conn_name] = {}
         self._connections[conn_name] = SocketTransportClientFactory(host=host, port=port, debug=self.debug,
-                                                                    conn_name=conn_name
+                                                                    conn_name=conn_name, cp=self
                                                                     # , proxy=self.proxy
         )
         self._connections[conn_name].job_registry = jobs.JobRegistry(  # Creating JobRegistry for new Socket
@@ -225,9 +256,9 @@ class ConnectionPool():
 
     def get_pool_by_ip(self, ip):
         for conn_name in self._connections:
-            log.info(self._connections[conn_name].ip + '------' + ip)
+            # log.info(self._connections[conn_name].ip + '------' + ip)
             if self._connections[conn_name].ip == ip:
-                log.info('returning:  ' + str(conn_name))
+                # log.info('returning:  ' + str(conn_name))
                 return conn_name
         pools = database.get_pools()
         import socket
@@ -261,6 +292,13 @@ class ConnectionPool():
             pool = database.get_pool_by_worker_name_and_password(worker_name, worker_password)
             return self._connections[pool['id']]
 
+    def get_pool_by_proxy_username(self, proxy_username, object=False):
+        for pool in self.list_users:
+            if proxy_username in self.list_users[pool]:
+                if object:
+                    return self._connections[pool]
+                else:
+                    return pool
     # def add_on_connect_callback(self, on_connect, workers, job_registry):
     def add_on_connect_callback(self, on_connect, workers, job_registry):
         for conn in self._connections:

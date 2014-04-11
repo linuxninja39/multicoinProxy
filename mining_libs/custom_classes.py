@@ -67,10 +67,12 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
     users = {}
     connections = Connections()  # For listing all connected users
     usernames = {}
+    cp = None
 
     def __init__(self, host, port, allow_trusted=True, allow_untrusted=False, debug=False, signing_key=None,
-                 signing_id=None, is_reconnecting=True, proxy=None, event_handler=client_service.ClientMiningService, conn_name=None):
+                 signing_id=None, is_reconnecting=True, proxy=None, event_handler=client_service.ClientMiningService, conn_name=None, cp=None):
         self.debug = debug
+        self.cp = cp
         self.is_reconnecting = is_reconnecting
         self.signing_key = signing_key
         self.signing_id = signing_id
@@ -95,8 +97,8 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
         self.connected = False
         self.pubsub = Pubsub()
         self.pubsub.f = self
-        self.users = {}
-        self.new_users = []
+        # self.users = {}
+        # self.new_users = []
 
     def rpc(self, method, params, *args, **kwargs):
         if not self.client:
@@ -143,7 +145,8 @@ class Pubsub(object):
         session.setdefault('subscriptions', {})
 
         if key in session['subscriptions']:
-            raise custom_exceptions.AlreadySubscribedException("This connection is already subscribed for such event.")
+            self.unsubscribe(connection, subscription, key)  # very bad hack :(
+            # raise custom_exceptions.AlreadySubscribedException("This connection is already subscribed for such event.")
 
         session['subscriptions'][key] = subscription
 

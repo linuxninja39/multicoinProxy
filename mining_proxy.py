@@ -424,7 +424,235 @@ def test():
 #             log.info('User %s was successfully switched from %s to %s pool!' % {user['proxy_username', str(f.main_host[0] + str(f.main_host[1])), str(new_f.main_host[0] + str(new_f.main_host[1]))] })
 #     reactor.callLater(periodicity, switch_proxy, cp=cp, switch=True)
 
+
 def switch_proxy(cp, periodicity, switch=False):
+    # log.info("-----------------------------------------------------------------------")
+    # # log.info("-----------------------------------------------------------------------")
+    # # log.info("-------------------------------Switching-------------------------------")
+    # log.info("-------------------------------Switching-------------------------------")
+    # # log.info("-------------------------------Switching-------------------------------")
+    # log.info("-----------------------------------------------------------------------")
+    if switch == True:
+        log.info("-----------------------------------------------------------------------")
+        log.info("-------------------------------Switching-------------------------------")
+        log.info("-----------------------------------------------------------------------")
+        # log.info('switching process')
+        # log.info('switching process')
+        # log.info('switching process')
+        # log.info('switching process')
+        switch_users = database.get_list_of_switch_users()  # ToDo Rewrite SQL according to new database scheme
+        log.info(switch_users)
+        # for user in switch_users:
+        #     log.info(user['pool_id'])
+        #     log.info(user['proxy_username'])
+        #     log.info(user['worker_username'])
+        #     log.info(user['worker_password'])
+        """
+        pool_id, host, port,  worker_username, worker_password, proxy_username, etc
+        """
+        used = {}
+        if len(switch_users) > 0:
+            for user in switch_users:
+                # log.info(user)
+                # log.info('for method')
+                # log.info('cp.list_connections')
+                # log.info(cp.list_connections)
+                # log.info('cp.list_users')
+                # log.info(cp.list_users)
+                f = cp.get_pool_by_proxy_username(user['proxy_username'], True)
+                if f:
+                    if user['proxy_username'] in cp.list_users[f.conn_name]:
+                    # conn_name = cp.usernames[user['proxy_username']]['conn_name']
+                    #     log.info('user in cp.users!')
+                        # cur_user = cp.usernames[user['proxy_username']]
+                        # log.info('cur_user')
+                        # log.info(cur_user)
+                        # log.info('IN "IF f" METHOD!')
+                        # log.info(f.users)
+                        # log.info(f.users.keys())
+                        for conn_ref in cp.list_users[f.conn_name][user['proxy_username']]['connections']:
+                            # log.info('f was found!')
+                            # log.info(conn_ref)
+                            usr = cp.list_connections.get(conn_ref, None)
+                            if usr:
+                                cur = usr
+                                # log.info(cur)
+                                str_conn_ref = conn_ref
+                                conn_ref = cur['conn_ref']
+                                if conn_ref is not None:
+                                    f.pubsub.unsubscribe(conn_ref, subscription=f.difficulty_subscription, key=cur['subs1'])
+                                    f.pubsub.unsubscribe(conn_ref, subscription=f.mining_subscription, key=cur['subs2'])
+                                    # for usr in switch_users:
+                                    #     if usr['proxy_username'] != cur_user['proxyusername']:
+                                    #         if cur_user['proxyusername'] in used:
+                                    #             if cur_user['proxyusername'] != True:
+                                    #                 new_user = usr
+                                    #                 used[cur_user['proxyusername']] = True
+                                    #         else:
+                                    #             new_user = usr
+                                    #             used[cur_user['proxyusername']] = True
+                                    # new_user = cur
+                                    new_user_info = {
+                                        'subs1': cur['subs1'],
+                                        'subs2': cur['subs1'],
+                                        'tail': cur['tail'],
+                                        'extranonce2_size': cur['extranonce2_size'],
+                                        'proxy_username': user['proxy_username'],
+                                        'proxy_password': user['proxy_password'],
+                                        'pool_worker_username': user['worker_username'],
+                                        'pool_worker_password': user['worker_password'],
+                                        'pool_name': user['pool_id'],
+                                        'conn_ref': conn_ref
+                                    }
+                                    # users = {
+                                    #     'proxyusername': user['proxy_username'],
+                                    #     'password': user['proxy_password'],
+                                    #     'pool_worker_username': user['worker_username'],
+                                    #     'pool_worker_password': user['worker_password'],
+                                    #     'conn_name': user['pool_id'],
+                                    #     'tail': cur['tail'],
+                                    #     'conn_ref': conn_ref,
+                                    #     'subs1': cur['subs1'],
+                                    #     'subs2': cur['subs1']
+                                    # }
+                                    new_f = cp.has_connection(conn_name=user['pool_id'])
+                                    if not new_f:
+                                        new_f = cp.get_connection(conn_name=user['pool_id'], host=user['host'], port=user['port'])
+                                    log.info('Switching user %s from %s to %s pool' % (str(user['proxy_username']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                                    # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                                    # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                                    # database.activate_user(new_user['proxyusername'], new_user['conn_name'])
+                                    database.deactivate_user_worker(user['worker_username'], user['worker_password'], f.conn_name)
+                                    database.activate_user_worker(user['worker_username'], user['worker_password'], new_f.conn_name)
+                                    if new_f.client == None or not new_f.client.connected:
+                                        # f.new_users += [[user['worker_username'], user['worker_password']]]
+                                        log.info('new_f.client == None')
+                                    else:
+                                        result = (new_f.rpc('mining.authorize', [user['worker_username'], user['worker_password']]))
+                                    # log.info('after yield')
+                                    # log.info('subscribing user %s on %s' % (str(conn_ref), new_f.conn_name))
+                                    # log.info('subscribing user %s on %s' % (str(conn_ref), new_f.conn_name))
+                                    # log.info('subscribing user %s on %s' % (str(conn_ref), new_f.conn_name))
+                                    # log.info('subscribing user %s on %s' % (str(conn_ref), new_f.conn_name))
+                                    # log.info('subscribing user %s on %s' % (str(conn_ref), new_f.conn_name))
+                                    subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
+                                    subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur['subs2'])[0]
+                                    # new_f.users[conn_ref.get_ident()] = users
+                                    cp.list_connections[str_conn_ref] = new_user_info  # Move this
+                                    # log.info('cp.list_connections')
+                                    # log.info(cp.list_connections)
+                                    # log.info('cp.list_users')
+                                    # log.info(cp.list_users)
+                                    new_f.difficulty_subscription.emit_single(new_f.difficulty_subscription.difficulty, f=new_f)
+                                    # # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
+                                    log.info('User %s was successfully switched from %s to %s pool' % (str(user['proxy_username']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                                    # log.info(f.cp.list_users)
+                                    q = f.cp.list_users[f.conn_name].pop(user['proxy_username'], None)
+                                    # log.info(q)
+                                    # log.info(f.cp.list_users)
+                                    # uindex = f.usernames[user['proxy_username']]['connections'].index(usr)
+                                    # f.usernames[user['proxy_username']]['connections'] = f.usernames[user['proxy_username']]['connections'][:uindex] + f.usernames[user['proxy_username']]['connections'][uindex+1:]
+                                    if user['proxy_username'] not in cp.list_users[new_f.conn_name]:
+                                        cp.list_users[new_f.conn_name][user['proxy_username']] = cp.list_connections[str_conn_ref]
+                                        if 'connections' not in cp.list_users[new_f.conn_name][user['proxy_username']]:
+                                            cp.list_users[new_f.conn_name][user['proxy_username']].update({'connections':  []})
+                                            cp.list_users[new_f.conn_name][user['proxy_username']]['connections'] += [str_conn_ref]
+                                    # log.info(f.cp.list_users)
+                                    # if user['proxy_username'] not in new_f.usernames.keys():
+                                    #     new_f.usernames[user['proxy_username']] = {}
+                                    # if 'connections' not in new_f.usernames[user['proxy_username']]:
+                                    #     new_f.usernames[user['proxy_username']]['connections'] = []
+                                       # f.usernames[user['proxy_username']]['connections']
+                                    # log.info('------------------------------------------')
+                                    # log.info(conn_ref.get_ident())
+                                    # log.info('was added to %s pool' % str(new_f.conn_name))
+                                    # log.info('------------------------------------------')
+                                    # # new_f.usernames[user['proxy_username']]['connections'] += [conn_ref.get_ident(), ]
+                                    # log.info(new_f.users)
+                                    # log.info(new_f.usernames)
+                                    # log.info('------------------------------------------')
+                                    # if new_f.client == None or not new_f.client.connected:
+                                    #     yield f.on_connect()
+                                # else:
+                                #     cur = f.users[usr]
+                                #     log.info(cur)
+                                #     conn_ref = cur['conn_ref']
+                                #     f.pubsub.unsubscribe(conn_ref, subscription=f.difficulty_subscription, key=cur['subs1'])
+                                #     f.pubsub.unsubscribe(conn_ref, subscription=f.mining_subscription, key=cur['subs2'])
+                                #     # for usr in switch_users:
+                                #     #     if usr['proxy_username'] != cur_user['proxyusername']:
+                                #     #         if cur_user['proxyusername'] in used:
+                                #     #             if cur_user['proxyusername'] != True:
+                                #     #                 new_user = usr
+                                #     #                 used[cur_user['proxyusername']] = True
+                                #     #         else:
+                                #     #             new_user = usr
+                                #     #             used[cur_user['proxyusername']] = True
+                                #     # new_user = cur
+                                #     users = {
+                                #         'proxyusername': cur['proxyusername'],
+                                #         'password': cur['password'],
+                                #         'pool_worker_username': user['worker_username'],
+                                #         'pool_worker_password': user['worker_password'],
+                                #         'conn_name': user['pool_id'],
+                                #         'tail': cur['tail'],
+                                #         'conn_ref': conn_ref,
+                                #         'subs1': cur['subs1'],
+                                #         'subs2': cur['subs1']
+                                #     }
+                                #     new_f = cp.has_connection(conn_name=user['pool_id'])
+                                #     if not new_f:
+                                #         new_f = cp.get_connection(conn_name=user['pool_id'], host=user['host'], port=user['port'])
+                                #     log.info('Switching user %s from %s to %s pool' % (str(cur['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                                #     # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                                #     # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                                #     # database.activate_user(new_user['proxyusername'], new_user['conn_name'])
+                                #     database.deactivate_user_worker(user['worker_username'], user['worker_password'], f.conn_name)
+                                #     database.activate_user_worker(user['worker_username'], user['worker_password'], new_f.conn_name)
+                                #     if new_f.client == None or not new_f.client.connected:
+                                #         f.new_users += [[user['worker_username'], user['worker_password']]]
+                                #     else:
+                                #         result = (new_f.rpc('mining.authorize', [user['worker_username'], user['worker_password']]))
+                                #     log.info('after yield')
+                                #     subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
+                                #     subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur['subs2'])[0]
+                                #     new_f.users[conn_ref.get_ident()] = users
+                                #     new_f.cp[new_f.conn_name].connection_users[conn_ref.get_ident()] = users
+                                #     new_f.difficulty_subscription.emit_single(new_f.difficulty_subscription.difficulty, f=new_f)
+                                #     # # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
+                                #     log.info('User %s was successfully switched from %s to %s pool' % (str(cur['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                                #     f.users.pop(conn_ref.get_ident(), None)
+                                #     uindex = f.usernames[user['proxy_username']]['connections'].index(usr)
+                                #     f.usernames[user['proxy_username']]['connections'] = f.usernames[user['proxy_username']]['connections'][:uindex] + f.usernames[user['proxy_username']]['connections'][uindex+1:]
+                                #     if user['proxy_username'] not in new_f.usernames.keys():
+                                #         new_f.usernames[user['proxy_username']] = {}
+                                #     if 'connections' not in new_f.usernames[user['proxy_username']]:
+                                #         new_f.usernames[user['proxy_username']]['connections'] = []
+                                #        # f.usernames[user['proxy_username']]['connections']
+                                #     log.info('------------------------------------------')
+                                #     log.info(conn_ref.get_ident())
+                                #     log.info('was added to %s pool' % str(new_f.conn_name))
+                                #     log.info('------------------------------------------')
+                                #     new_f.usernames[user['proxy_username']]['connections'] += [conn_ref.get_ident(), ]
+                                #     log.info(new_f.users)
+                                #     log.info(new_f.usernames)
+                                #     log.info('------------------------------------------')
+                                #     # if new_f.client == None or not new_f.client.connected:
+                                #     #     yield f.on_connect()
+                                    q = 1
+                                    # f.users.pop(usr)
+                                else:
+                                    cp.list_connections.pop(str_conn_ref)
+                                    cp.list_users[f.conn_name][user['proxy_username']]['connections'].pop(str_conn_ref)
+                                    # log.info("remove connection, as it's outdated")
+        else:
+            log.info("-----------------------------------------------------------------------")
+            log.info("---------------------------Nothing to switch---------------------------")
+            log.info("-----------------------------------------------------------------------")
+    switch = True
+    reactor.callLater(periodicity, switch_proxy, cp=cp, switch=switch, periodicity=periodicity)
+
+def new_old_switch_proxy(cp, periodicity, switch=False):
     log.info("-----------------------------------------------------------------------")
     # log.info("-----------------------------------------------------------------------")
     # log.info("-------------------------------Switching-------------------------------")
@@ -458,66 +686,155 @@ def switch_proxy(cp, periodicity, switch=False):
             for user in switch_users:
                 log.info(user)
                 log.info('for method')
-                if user['proxy_username'] in cp.usernames:
+                f = cp.get_connection(conn_name=user['pool_id'])
+                if user['proxy_username'] in cp.list_users:
                     conn_name = cp.usernames[user['proxy_username']]['conn_name']
                     log.info('user in cp.users!')
                     cur_user = cp.usernames[user['proxy_username']]
                     log.info('cur_user')
                     log.info(cur_user)
-                    f = cp.has_connection(cur_user['conn_name'])
                     if f:
+                        log.info('IN "IF f" METHOD!')
+                        log.info(f.users)
+                        log.info(f.users.keys())
                         for usr in f.usernames[user['proxy_username']]['connections']:
                             log.info('f was found!')
-                            cur = f.users[usr]
-                            log.info(cur)
-                            conn_ref = cur['conn_ref']
-                            f.pubsub.unsubscribe(conn_ref, subscription=f.difficulty_subscription, key=cur['subs1'])
-                            f.pubsub.unsubscribe(conn_ref, subscription=f.mining_subscription, key=cur['subs2'])
-                            # for usr in switch_users:
-                            #     if usr['proxy_username'] != cur_user['proxyusername']:
-                            #         if cur_user['proxyusername'] in used:
-                            #             if cur_user['proxyusername'] != True:
-                            #                 new_user = usr
-                            #                 used[cur_user['proxyusername']] = True
-                            #         else:
-                            #             new_user = usr
-                            #             used[cur_user['proxyusername']] = True
-                            # new_user = cur
-                            users = {
-                                'proxyusername': cur['proxyusername'],
-                                'password': cur['password'],
-                                'pool_worker_username': user['worker_username'],
-                                'pool_worker_password': user['worker_password'],
-                                'conn_name': user['pool_id'],
-                                'tail': cur['tail'],
-                                'conn_ref': conn_ref,
-                                'subs1': cur['subs1'],
-                                'subs2': cur['subs1']
-                            }
-                            new_f = cp.has_connection(conn_name=user['pool_id'])
-                            if not new_f:
-                                new_f = cp.get_connection(conn_name=user['pool_id'], host=user['host'], port=user['port'])
-                            log.info('Switching user %s from %s to %s pool' % (str(cur['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
-                            # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
-                            # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
-                            # database.activate_user(new_user['proxyusername'], new_user['conn_name'])
-                            database.activate_user_worker(user['worker_username'], user['worker_password'], new_f.conn_name)
-                            if new_f.client == None or not new_f.client.connected:
-                                f.new_users += [[user['worker_username'], user['worker_password']]]
-                            else:
-                                result = (new_f.rpc('mining.authorize', [user['worker_username'], user['worker_password']]))
-                            log.info('after yield')
-                            subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
-                            subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur['subs2'])[0]
-                            new_f.users[conn_ref.get_ident()] = users
-                            new_f.difficulty_subscription.emit_single(new_f.difficulty_subscription.difficulty, f=new_f)
-                            # # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
-                            log.info('User %s was successfully switched from %s to %s pool' % (str(cur['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
-                            f.users.pop(conn_ref.get_ident(), None)
-                            uindex = f.usernames[user['proxy_username']]['connections'].index(usr)
-                            f.usernames[user['proxy_username']]['connections'] = f.usernames[user['proxy_username']]['connections'][:uindex] + f.usernames[user['proxy_username']]['connections'][uindex+1:]
-                            # if new_f.client == None or not new_f.client.connected:
-                            #     yield f.on_connect()
+                            log.info(usr)
+                            if usr in f.users:
+                                cur = f.users[usr]
+                                log.info(cur)
+                                conn_ref = cur['conn_ref']
+                                f.pubsub.unsubscribe(conn_ref, subscription=f.difficulty_subscription, key=cur['subs1'])
+                                f.pubsub.unsubscribe(conn_ref, subscription=f.mining_subscription, key=cur['subs2'])
+                                # for usr in switch_users:
+                                #     if usr['proxy_username'] != cur_user['proxyusername']:
+                                #         if cur_user['proxyusername'] in used:
+                                #             if cur_user['proxyusername'] != True:
+                                #                 new_user = usr
+                                #                 used[cur_user['proxyusername']] = True
+                                #         else:
+                                #             new_user = usr
+                                #             used[cur_user['proxyusername']] = True
+                                # new_user = cur
+                                users = {
+                                    'proxyusername': user['proxy_username'],
+                                    'password': user['proxy_password'],
+                                    'pool_worker_username': user['worker_username'],
+                                    'pool_worker_password': user['worker_password'],
+                                    'conn_name': user['pool_id'],
+                                    'tail': cur['tail'],
+                                    'conn_ref': conn_ref,
+                                    'subs1': cur['subs1'],
+                                    'subs2': cur['subs1']
+                                }
+                                new_f = cp.has_connection(conn_name=user['pool_id'])
+                                if not new_f:
+                                    new_f = cp.get_connection(conn_name=user['pool_id'], host=user['host'], port=user['port'])
+                                log.info('Switching user %s from %s to %s pool' % (str(cur['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                                # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                                # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                                # database.activate_user(new_user['proxyusername'], new_user['conn_name'])
+                                database.deactivate_user_worker(user['worker_username'], user['worker_password'], f.conn_name)
+                                database.activate_user_worker(user['worker_username'], user['worker_password'], new_f.conn_name)
+                                if new_f.client == None or not new_f.client.connected:
+                                    f.new_users += [[user['worker_username'], user['worker_password']]]
+                                else:
+                                    result = (new_f.rpc('mining.authorize', [user['worker_username'], user['worker_password']]))
+                                log.info('after yield')
+                                subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
+                                subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur['subs2'])[0]
+                                new_f.users[conn_ref.get_ident()] = users
+                                new_f.difficulty_subscription.emit_single(new_f.difficulty_subscription.difficulty, f=new_f)
+                                # # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
+                                log.info('User %s was successfully switched from %s to %s pool' % (str(cur['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                                f.cp.connection_users[f.conn_name].pop(conn_ref.get_ident(), None)
+                                f.users.pop(conn_ref.get_ident(), None)
+                                uindex = f.usernames[user['proxy_username']]['connections'].index(usr)
+                                f.usernames[user['proxy_username']]['connections'] = f.usernames[user['proxy_username']]['connections'][:uindex] + f.usernames[user['proxy_username']]['connections'][uindex+1:]
+                                if user['proxy_username'] not in new_f.usernames.keys():
+                                    new_f.usernames[user['proxy_username']] = {}
+                                if 'connections' not in new_f.usernames[user['proxy_username']]:
+                                    new_f.usernames[user['proxy_username']]['connections'] = []
+                                   # f.usernames[user['proxy_username']]['connections']
+                                log.info('------------------------------------------')
+                                log.info(conn_ref.get_ident())
+                                log.info('was added to %s pool' % str(new_f.conn_name))
+                                log.info('------------------------------------------')
+                                new_f.usernames[user['proxy_username']]['connections'] += [conn_ref.get_ident(), ]
+                                log.info(new_f.users)
+                                log.info(new_f.usernames)
+                                log.info('------------------------------------------')
+                                # if new_f.client == None or not new_f.client.connected:
+                                #     yield f.on_connect()
+                            # else:
+                            #     cur = f.users[usr]
+                            #     log.info(cur)
+                            #     conn_ref = cur['conn_ref']
+                            #     f.pubsub.unsubscribe(conn_ref, subscription=f.difficulty_subscription, key=cur['subs1'])
+                            #     f.pubsub.unsubscribe(conn_ref, subscription=f.mining_subscription, key=cur['subs2'])
+                            #     # for usr in switch_users:
+                            #     #     if usr['proxy_username'] != cur_user['proxyusername']:
+                            #     #         if cur_user['proxyusername'] in used:
+                            #     #             if cur_user['proxyusername'] != True:
+                            #     #                 new_user = usr
+                            #     #                 used[cur_user['proxyusername']] = True
+                            #     #         else:
+                            #     #             new_user = usr
+                            #     #             used[cur_user['proxyusername']] = True
+                            #     # new_user = cur
+                            #     users = {
+                            #         'proxyusername': cur['proxyusername'],
+                            #         'password': cur['password'],
+                            #         'pool_worker_username': user['worker_username'],
+                            #         'pool_worker_password': user['worker_password'],
+                            #         'conn_name': user['pool_id'],
+                            #         'tail': cur['tail'],
+                            #         'conn_ref': conn_ref,
+                            #         'subs1': cur['subs1'],
+                            #         'subs2': cur['subs1']
+                            #     }
+                            #     new_f = cp.has_connection(conn_name=user['pool_id'])
+                            #     if not new_f:
+                            #         new_f = cp.get_connection(conn_name=user['pool_id'], host=user['host'], port=user['port'])
+                            #     log.info('Switching user %s from %s to %s pool' % (str(cur['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                            #     # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                            #     # log.info('Switching user %s from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                            #     # database.activate_user(new_user['proxyusername'], new_user['conn_name'])
+                            #     database.deactivate_user_worker(user['worker_username'], user['worker_password'], f.conn_name)
+                            #     database.activate_user_worker(user['worker_username'], user['worker_password'], new_f.conn_name)
+                            #     if new_f.client == None or not new_f.client.connected:
+                            #         f.new_users += [[user['worker_username'], user['worker_password']]]
+                            #     else:
+                            #         result = (new_f.rpc('mining.authorize', [user['worker_username'], user['worker_password']]))
+                            #     log.info('after yield')
+                            #     subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
+                            #     subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur['subs2'])[0]
+                            #     new_f.users[conn_ref.get_ident()] = users
+                            #     new_f.cp[new_f.conn_name].connection_users[conn_ref.get_ident()] = users
+                            #     new_f.difficulty_subscription.emit_single(new_f.difficulty_subscription.difficulty, f=new_f)
+                            #     # # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
+                            #     log.info('User %s was successfully switched from %s to %s pool' % (str(cur['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                            #     f.users.pop(conn_ref.get_ident(), None)
+                            #     uindex = f.usernames[user['proxy_username']]['connections'].index(usr)
+                            #     f.usernames[user['proxy_username']]['connections'] = f.usernames[user['proxy_username']]['connections'][:uindex] + f.usernames[user['proxy_username']]['connections'][uindex+1:]
+                            #     if user['proxy_username'] not in new_f.usernames.keys():
+                            #         new_f.usernames[user['proxy_username']] = {}
+                            #     if 'connections' not in new_f.usernames[user['proxy_username']]:
+                            #         new_f.usernames[user['proxy_username']]['connections'] = []
+                            #        # f.usernames[user['proxy_username']]['connections']
+                            #     log.info('------------------------------------------')
+                            #     log.info(conn_ref.get_ident())
+                            #     log.info('was added to %s pool' % str(new_f.conn_name))
+                            #     log.info('------------------------------------------')
+                            #     new_f.usernames[user['proxy_username']]['connections'] += [conn_ref.get_ident(), ]
+                            #     log.info(new_f.users)
+                            #     log.info(new_f.usernames)
+                            #     log.info('------------------------------------------')
+                            #     # if new_f.client == None or not new_f.client.connected:
+                            #     #     yield f.on_connect()
+                                q = 1
+                                # f.users.pop(usr)
+                                log.info("remove connection, as it's outdated")
     switch = True
     reactor.callLater(periodicity, switch_proxy, cp=cp, switch=switch, periodicity=periodicity)
 
@@ -591,12 +908,15 @@ def test_switch_proxy(cp, periodicity, switch=False):
                         subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
                         subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur['subs2'])[0]
                         new_f.users[conn_ref.get_ident()] = users
+                        new_f.cp.connection_user[new_f.conn_name][conn_ref.get_ident()] = users
                         new_f.difficulty_subscription.on_new_difficulty(new_f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
                         # # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
                         new_f.job_registry.set_difficulty(new_f.difficulty_subscription.difficulty)
                         result = (new_f.rpc('mining.authorize', [new_user['worker_username'], new_user['worker_password']]))
                         log.info('User %s was successfully switched from %s to %s pool' % (str(cur_user['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
+                        f.cp.connection_users[f.conn_name].pop(conn_ref.get_ident(), None)
                         f.users.pop(conn_ref.get_ident(), None)
+                        f.cp.connection_user[f.conn_name].pop(conn_ref.get_ident())
         switch = False
     else:
         switch = True

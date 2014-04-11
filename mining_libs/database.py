@@ -200,7 +200,7 @@ def get_best_pool_and_worker_by_proxy_user(proxy_username, proxy_password):
 def get_current_pool_and_worker_by_proxy_user(proxy_username, proxy_password):
     pool = session.execute(
         " \
-        SELECT Service.id AS id, Host.name AS host, Service.port AS port, ServiceUser.remoteWorkerName AS username, ServiceUser.remoteWorkerPass From Service \
+        SELECT Service.id AS id, Host.name AS host, Service.port AS port, ServiceUser.remoteWorkerName AS username, ServiceUser.remoteWorkerPass as password From Service \
         JOIN Host ON Service.hostId = Host.id \
         JOIN ServiceUser ON ServiceUser.serviceId = Service.id \
         JOIN Worker ON Worker.userId = ServiceUser.userId \
@@ -210,14 +210,37 @@ def get_current_pool_and_worker_by_proxy_user(proxy_username, proxy_password):
         JOIN ProxyUser ON ProxyUser.userId = ServiceUser.userId \
         WHERE Worker.name = :proxy_username AND Worker.password = :proxy_password AND UserCoin.mine = TRUE \
         AND ServiceUser.active = TRUE \
-        ", # Order by added temporarily
-
+        ",
         {
             'proxy_username': proxy_username,
-            'proxy_password': proxy_password
+            'proxy_password': proxy_password,
         }
     ).first()
-    # log.info(pool)
+    log.info(pool)
+    return pool
+
+
+def get_current_pool_and_worker_by_proxy_user_and_pool_id(proxy_username, proxy_password, pool_id):
+    pool = session.execute(
+        " \
+        SELECT Service.id AS id, Host.name AS host, Service.port AS port, ServiceUser.remoteWorkerName AS username, ServiceUser.remoteWorkerPass as password From Service \
+        JOIN Host ON Service.hostId = Host.id \
+        JOIN ServiceUser ON ServiceUser.serviceId = Service.id \
+        JOIN Worker ON Worker.userId = ServiceUser.userId \
+        JOIN CoinService ON CoinService.serviceId = Service.id \
+        JOIN Coin ON Coin.id = CoinService.coinId \
+        JOIN UserCoin ON UserCoin.userId = ServiceUser.userId AND UserCoin.coinId = Coin.id \
+        JOIN ProxyUser ON ProxyUser.userId = ServiceUser.userId \
+        WHERE Worker.name = :proxy_username AND Worker.password = :proxy_password AND UserCoin.mine = TRUE \
+        AND Service.id = :pool_id \
+        ",
+        {
+            'proxy_username': proxy_username,
+            'proxy_password': proxy_password,
+            'pool_id': pool_id
+        }
+    ).first()
+    log.info(pool)
     return pool
 
 
@@ -226,7 +249,7 @@ def get_list_of_switch_users():
         " \
         SELECT Service.id AS pool_id, Host.name AS host, Service.port AS port, \
         ServiceUser.id as worker_id, ServiceUser.remoteWorkerName AS worker_username, ServiceUser.remoteWorkerPass AS worker_password, \
-        Worker.name AS proxy_username, Coin.profitability, MAX(Coin.profitability), Coin.name From Service \
+        Worker.name AS proxy_username, Worker.name as proxy_password, Coin.profitability, MAX(Coin.profitability), Coin.name From Service \
         JOIN Host ON Service.hostId = Host.id \
         JOIN ServiceUser ON ServiceUser.serviceId = Service.id \
         JOIN CoinService ON CoinService.serviceId = Service.id \
@@ -274,6 +297,24 @@ def activate_user_worker(worker_username, worker_password, pool_id):
         UPDATE ServiceUser \
         JOIN Service ON Service.id = ServiceUser.serviceId \
         SET ServiceUser.active = 1 \
+        WHERE ServiceUser.remoteWorkerName = :worker_username AND ServiceUser.remoteWorkerPass = :worker_password AND Service.id = :pool_id \
+        ",
+        {
+            'worker_username': worker_username,
+            'worker_password': worker_password,
+            'pool_id': pool_id
+        }
+    )
+    session.flush()
+    session.commit()
+
+
+def deactivate_user_worker(worker_username, worker_password, pool_id):
+    update = session.execute(
+        " \
+        UPDATE ServiceUser \
+        JOIN Service ON Service.id = ServiceUser.serviceId \
+        SET ServiceUser.active = 0 \
         WHERE ServiceUser.remoteWorkerName = :worker_username AND ServiceUser.remoteWorkerPass = :worker_password AND Service.id = :pool_id \
         ",
         {
@@ -405,3 +446,28 @@ def update_job(job_id, worker_name, extranonce2, extranonce2_size_user, accepted
     # log.info('here')
     session.flush()
     session.commit()
+
+
+"""
+For example, we run proxy with parameter "-sw 300". 300 - time in seconds = 5 minutes.
+When proxy starts working we have next coin's profitability.
+id: Coin Name   -- profitability
+03: Feathercoin -- 1
+04: Litecoin    -- 5
+11: Bitcoin     -- 6
+12: ELACoin     -- 1
+13: Phoenixcoin -- 7
+14: Worldcoin   -- 2
+15: NovaCoin    -- 8
+16: LuckyCoin   -- 3
+
+
+We run cgminer for user "bob1". This user has accounts on both Feathercoint and Litecoin pools.
+As you can see, the most profitable coin for this user is Litecoin, so we connect "bob1" to corresponding pool.
+If you want to switch current user, you have to change Featercoin profitability and it should be greater then
+current user's active coin. In our situation, it should be > 5. So if you will change Feather coin, for example,
+to 6, user will be switched to new pool (when switch function will be executed). After a period of time he will get new work from this pool.
+As I understand, it's need some time to mine all old work, sent to cgminer. It seems, that it has a queue of works there.
+
+I tested switch today, using instructions described above. And everything was ok.
+"""

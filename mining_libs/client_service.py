@@ -94,8 +94,8 @@ class ClientMiningService(GenericEventHandler):
             port = connection_ref.transport.getPeer().port
                 # if self.cp:
             f = self.cp.get_connection(ip=ip, port=port)
-            log.info(ip)
-            log.info(port)
+            # log.info(ip)
+            # log.info(port)
             log.info("Proxy just received information about new mining job (%s) on '%s:%d' pool" % (str(job_id), f.main_host[0], f.main_host[1]))
 
             # Broadcast to Stratum clients
@@ -105,8 +105,8 @@ class ClientMiningService(GenericEventHandler):
             # log.info((job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime))
             # log.info(f.job_registry.extranonce1_bin)
             # log.info(f.extranonce1)
-            log.info(f)
-            log.info(f.conn_name)
+            # log.info(f)
+            # log.info(f.conn_name)
             (tail, extranonce2_size) = stratum_listener.StratumProxyService._get_unused_tail(f)
             dcoinb1 = json.dumps(coinb1)
             ncoinb1 = json.loads(dcoinb1[:-1] + str(f.extranonce1) + dcoinb1[-1:])
