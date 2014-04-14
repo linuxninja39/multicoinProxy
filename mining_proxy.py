@@ -25,6 +25,7 @@ from twisted.internet import reactor, defer
 from stratum.socket_transport import SocketTransportFactory
 from stratum.services import ServiceEventHandler
 from twisted.web.server import Site
+import sys
 from mining_libs.custom_classes import CustomSocketTransportClientFactory as SocketTransportClientFactory
 
 from mining_libs import stratum_listener
@@ -922,6 +923,12 @@ def test_switch_proxy(cp, periodicity, switch=False):
         switch = True
     reactor.callLater(periodicity, test_switch_proxy, cp=cp, switch=switch, periodicity=periodicity)
 
+def restart_program():
+    """Restarts the current program.
+    Note: this function does not return. Any cleanup action (like
+    saving data) must be done before calling this function."""
+    python = sys.executable
+    os.execl(python, python, * sys.argv)
 
 @defer.inlineCallbacks
 def main(args):
@@ -1080,6 +1087,7 @@ def main(args):
         log.warning("-----------------------------------------------------------------------")
         switch_proxy(cp, args.switch_periodicity, False)
         # reactor.callLater(args.switch_periodicity, test_switch_proxy, cp=cp, periodicity=args.switch_periodicity, switch=True)
+    reactor.callLater(2400, restart_program)
 
 
 if __name__ == '__main__':

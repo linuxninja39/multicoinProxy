@@ -672,7 +672,7 @@ class StratumProxyService(GenericService):
         # log.info(str(job_id) + '   ' + str(worker_name) + '   ' + str(extranonce2))
         try:
             # log.info('submitting: ' + str(self.connection_ref().get_ident()) + '  --  ' + str(tail) + '  --  ' + str(extranonce2))
-            # log.info([worker_name, job_id, extranonce2, ntime, nonce])
+            log.info([worker_name, job_id, extranonce2, ntime, nonce, f.extranonce2_size])
             result = (yield f.rpc('mining.submit', [worker_name, job_id, extranonce2, ntime, nonce]))
         except RemoteServiceException as exc:
             response_time = (time.time() - start) * 1000
