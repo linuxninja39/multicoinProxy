@@ -93,6 +93,7 @@ class DifficultySubscription(Subscription):
                         else:
                             raise Exception("Return object from process() method must be list or None")
         except AttributeError:
+
             i = 1
 
 
@@ -254,7 +255,7 @@ class StratumProxyService(GenericService):
     def _drop_tail(self, result, tail, f):
         if tail in f.registered_tails:
             f.registered_tails.remove(tail)
-            f.users.pop(self.connection_ref().get_ident(), None)
+            f.cp.list_connections.pop(self.connection_ref().get_ident(), None)
         else:
             log.error("Given extranonce is not registered1")
         return result
