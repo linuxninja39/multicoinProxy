@@ -437,57 +437,59 @@ def switch_proxy(cp, periodicity, switch=False):
         log.info("-----------------------------------------------------------------------")
         log.info("-------------------------------Switching-------------------------------")
         log.info("-----------------------------------------------------------------------")
+        check_switch = database.check_switch()
         # log.info('switching process')
         # log.info('switching process')
         # log.info('switching process')
         # log.info('switching process')
-        switch_users = database.get_list_of_switch_users()  # ToDo Rewrite SQL according to new database scheme
-        log.info(switch_users)
-        # for user in switch_users:
-        #     log.info(user['pool_id'])
-        #     log.info(user['proxy_username'])
-        #     log.info(user['worker_username'])
-        #     log.info(user['worker_password'])
-        """
-        pool_id, host, port,  worker_username, worker_password, proxy_username, etc
-        """
-        used = {}
-        if len(switch_users) > 0:
-            for user in switch_users:
-                # log.info(user)
-                # log.info('for method')
-                # log.info('cp.list_connections')
-                # log.info(cp.list_connections)
-                # log.info('cp.list_users')
-                # log.info(cp.list_users)
-                f = cp.get_pool_by_proxy_username(user['proxy_username'], True)
-                if f:
-                    if user['proxy_username'] in cp.list_users[f.conn_name]:
-                    # conn_name = cp.usernames[user['proxy_username']]['conn_name']
-                    #     log.info('user in cp.users!')
-                        # cur_user = cp.usernames[user['proxy_username']]
-                        # log.info('cur_user')
-                        # log.info(cur_user)
-                        # log.info('IN "IF f" METHOD!')
-                        # log.info(f.users)
-                        # log.info(f.users.keys())
-                        for conn_ref in cp.list_users[f.conn_name][user['proxy_username']]['connections']:
-                            # log.info('f was found!')
-                            # log.info(conn_ref)
-                            usr = cp.list_connections.get(conn_ref, None)
-                            if usr:
-                                cur = usr
-                                # log.info(cur)
-                                str_conn_ref = conn_ref
-                                conn_ref = cur['conn_ref']
-                                if conn_ref is not None:
-                                    f.pubsub.unsubscribe(conn_ref, subscription=f.difficulty_subscription, key=cur['subs1'])
-                                    f.pubsub.unsubscribe(conn_ref, subscription=f.mining_subscription, key=cur['subs2'])
-                                    # for usr in switch_users:
-                                    #     if usr['proxy_username'] != cur_user['proxyusername']:
-                                    #         if cur_user['proxyusername'] in used:
-                                    #             if cur_user['proxyusername'] != True:
-                                    #                 new_user = usr
+        if check_switch:
+            switch_users = database.get_list_of_switch_users()  # ToDo Rewrite SQL according to new database scheme
+            log.info(switch_users)
+            # for user in switch_users:
+            #     log.info(user['pool_id'])
+            #     log.info(user['proxy_username'])
+            #     log.info(user['worker_username'])
+            #     log.info(user['worker_password'])
+            """
+            pool_id, host, port,  worker_username, worker_password, proxy_username, etc
+            """
+            used = {}
+            if len(switch_users) > 0:
+                for user in switch_users:
+                    # log.info(user)
+                    # log.info('for method')
+                    # log.info('cp.list_connections')
+                    # log.info(cp.list_connections)
+                    # log.info('cp.list_users')
+                    # log.info(cp.list_users)
+                    f = cp.get_pool_by_proxy_username(user['proxy_username'], True)
+                    if f:
+                        if user['proxy_username'] in cp.list_users[f.conn_name]:
+                        # conn_name = cp.usernames[user['proxy_username']]['conn_name']
+                        #     log.info('user in cp.users!')
+                            # cur_user = cp.usernames[user['proxy_username']]
+                            # log.info('cur_user')
+                            # log.info(cur_user)
+                            # log.info('IN "IF f" METHOD!')
+                            # log.info(f.users)
+                            # log.info(f.users.keys())
+                            for conn_ref in cp.list_users[f.conn_name][user['proxy_username']]['connections']:
+                                # log.info('f was found!')
+                                # log.info(conn_ref)
+                                usr = cp.list_connections.get(conn_ref, None)
+                                if usr:
+                                    cur = usr
+                                    # log.info(cur)
+                                    str_conn_ref = conn_ref
+                                    conn_ref = cur['conn_ref']
+                                    if conn_ref is not None:
+                                        f.pubsub.unsubscribe(conn_ref, subscription=f.difficulty_subscription, key=cur['subs1'])
+                                        f.pubsub.unsubscribe(conn_ref, subscription=f.mining_subscription, key=cur['subs2'])
+                                        # for usr in switch_users:
+                                        #     if usr['proxy_username'] != cur_user['proxyusername']:
+                                        #         if cur_user['proxyusername'] in used:
+                                        #             if cur_user['proxyusername'] != True:
+                                        #                 new_user = usr
                                     #                 used[cur_user['proxyusername']] = True
                                     #         else:
                                     #             new_user = usr
@@ -1087,7 +1089,7 @@ def main(args):
         log.warning("-----------------------------------------------------------------------")
         switch_proxy(cp, args.switch_periodicity, False)
         # reactor.callLater(args.switch_periodicity, test_switch_proxy, cp=cp, periodicity=args.switch_periodicity, switch=True)
-    reactor.callLater(2400, restart_program)
+    reactor.callLater(1800, restart_program)
 
 
 if __name__ == '__main__':

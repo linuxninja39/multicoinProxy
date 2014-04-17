@@ -83,9 +83,9 @@ def get_pools():
         JOIN CoinService ON CoinService.coinId = Coin.id \
         JOIN Service ON Service.id = CoinService.serviceId \
         JOIN Host ON Host.id = Service.hostId \
-        WHERE Service.active = TRUE \
+        WHERE Service.active = TRUE AND Host.name != 'pool.d2.cc'\
         "
-    )
+    ).fetchall()
     # log.info(pools)
     return pools
 
@@ -358,6 +358,16 @@ def deactivate_all_users_on_pool_start(pool_id):
     session.flush()
     session.commit()
 
+
+def check_switch(pool_id):
+    switch = session.execute(
+        " \
+        SELECT switch from Switch where Switch.switch = True \
+        "
+    ).first()
+    if switch:
+        return True
+    return False
 
 def deactivate_all_users():
     _ = session.execute(

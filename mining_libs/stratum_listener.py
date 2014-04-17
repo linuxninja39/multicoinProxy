@@ -93,7 +93,6 @@ class DifficultySubscription(Subscription):
                         else:
                             raise Exception("Return object from process() method must be list or None")
         except AttributeError:
-
             i = 1
 
 
@@ -543,8 +542,8 @@ class StratumProxyService(GenericService):
                 # f.pubsub.unsubscribe(self.connection_ref())
                 f.pubsub.unsubscribe(self.connection_ref(), subscription=f.difficulty_subscription, key=subs1[1])
                 f.pubsub.unsubscribe(self.connection_ref(), subscription=f.mining_subscription, key=subs2[1])
-                # defer.returnValue(((subs1, subs2),) + (tail, extranonce2_size))
-                defer.returnValue(((subs1, subs2),) + ('', extranonce2_size+1))
+                # defer.returnValue(((subs1, subs2),) + (tail, extranonce2_size))  # April 15
+                defer.returnValue(((subs1, subs2),) + ('', extranonce2_size+1))  # April 15
                 # defer.returnValue(((subs1, subs2),) + (tail, 4))
         else:
             f = self._cp.get_connection(ip=ip, port=port)
@@ -627,14 +626,17 @@ class StratumProxyService(GenericService):
         if f is None:
             defer.returnValue(False)
         proxy_username = worker_name
-        worker = database.get_worker(host=f.main_host[0], port=f.main_host[1], proxy_username=worker_name, pool_id=str(f.conn_name))
-        if worker:
-            worker_name = worker['remoteUsername']
-        else:
-            # log.info('problem here')
-            # log.info('problem here')
-            # log.info('problem here')
-            defer.returnValue(False)
+        try:
+            worker_name = f.cp.list_users[f.conn_name][worker_name]['pool_worker_username']
+        except KeyError:        
+            worker = database.get_worker(host=f.main_host[0], port=f.main_host[1], proxy_username=worker_name, pool_id=str(f.conn_name))
+            if worker:
+                worker_name = worker['remoteUsername']
+            else:
+                # log.info('problem here')
+                # log.info('problem here')
+                # log.info('problem here')
+                defer.returnValue(False)
         # log.info(worker_name)
         if f.client is None or not f.client.connected:
             raise SubmitException("Upstream not connected")

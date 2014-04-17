@@ -244,12 +244,14 @@ class ConnectionPool():
     def init_all_pools(self):
         pools = database.get_pools()
         for pool in pools:
+            log.info(pool)
             self._new_connection(host=pool['host'], port=pool['port'])
         return self
 
     def init_one_pool(self):
         pools = database.get_pools()
         for pool in pools:
+            log.info(pool)
             self._new_connection(host=pool['host'], port=pool['port'])
             break
         return self
