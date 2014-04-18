@@ -359,7 +359,7 @@ def deactivate_all_users_on_pool_start(pool_id):
     session.commit()
 
 
-def check_switch(pool_id):
+def check_switch():
     switch = session.execute(
         " \
         SELECT switch from Switch where Switch.switch = True \
