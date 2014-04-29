@@ -54,13 +54,15 @@ class DifficultySubscription(Subscription):
     # @classmethod
     def on_new_difficulty(self, new_difficulty, **kwargs):
         self.difficulty = new_difficulty
+        log.info('self.f.pubsub')
+        log.info(self.f.pubsub)
         self.emit(new_difficulty, **kwargs)
 
     def emit(self, *args, **kwargs):
         '''Shortcut for emiting this event to all subscribers.'''
         if not hasattr(self, 'event'):
             raise Exception("Subscription.emit() can be used only for subclasses with filled 'event' class variable.")
-        return self.f.pubsub.emit(self.event, *args, **kwargs)
+        return self.f.pubsub.emit(self, *args, **kwargs)
 
     def after_subscribe(self, *args):
         self.emit_single(self.difficulty, f=self.f)
@@ -82,17 +84,19 @@ class DifficultySubscription(Subscription):
                 ident = conn.get_ident()
                 # log.info(ident)
                 # log.info(f.users)
-                if conn.get_ident() in f.cp.list_connections and \
-                                'pool_name' in f.cp.list_connections[conn.get_ident()] and \
-                                f.cp.list_connections[conn.get_ident()]['pool_name'] == f.conn_name:
-                    payload = self.process(*args, **kwargs)
-                    if payload:
-                        if isinstance(payload, (tuple, list)):
-                            conn.writeJsonRequest(self.event, payload, is_notification=True)
-                            self.after_emit(*args, **kwargs)
-                        else:
-                            raise Exception("Return object from process() method must be list or None")
+                # if conn.get_ident() in f.cp.list_connections and \
+                #                 'pool_name' in f.cp.list_connections[conn.get_ident()] and \
+                #                 f.cp.list_connections[conn.get_ident()]['pool_name'] == f.conn_name:
+                payload = self.process(*args, **kwargs)
+                if payload:
+                    if isinstance(payload, (tuple, list)):
+                        conn.writeJsonRequest(self.event, payload, is_notification=True)
+                        self.after_emit(*args, **kwargs)
+                        log.info('RPC was sent to %s from %s' % (f.cp.list_connections[conn.get_ident()]['proxy_username'], f.conn_name))
+                    else:
+                        raise Exception("Return object from process() method must be list or None")
         except AttributeError:
+
             i = 1
 
 
@@ -150,7 +154,9 @@ class MiningSubscription(Subscription):
         '''Shortcut for emiting this event to all subscribers.'''
         if not hasattr(self, 'event'):
             raise Exception("Subscription.emit() can be used only for subclasses with filled 'event' class variable.")
-        return self.f.pubsub.emit(self.event, *args, **kwargs)
+        log.info('self.f.pubsub')
+        log.info(self.f.pubsub)
+        return self.f.pubsub.emit(self, *args, **kwargs)
 
     def emit_single(self, *args, **kwargs):
         '''Perform emit of this event just for current subscription.'''
@@ -158,23 +164,33 @@ class MiningSubscription(Subscription):
         if conn == None:
             # Connection is closed
             return
-        f = kwargs.get('f', None)
+        # f = kwargs.get('f', None)
         f = self.f
+        log.info('emit single for %s' % f.conn_name)
         try:
             if f:
                 ident = conn.get_ident()
                 # log.info(ident)
                 # log.info(f.users)
-                if conn.get_ident() in f.cp.list_connections and \
-                                'pool_name' in f.cp.list_connections[conn.get_ident()] and \
-                                f.cp.list_connections[conn.get_ident()]['pool_name'] == f.conn_name:
-                    payload = self.process(*args, **kwargs)
-                    if payload != None:
-                        if isinstance(payload, (tuple, list)):
-                            conn.writeJsonRequest(self.event, payload, is_notification=True)
-                            self.after_emit(*args, **kwargs)
-                        else:
-                            raise Exception("Return object from process() method must be list or None")
+                # log.info(f.cp.list_connections[conn.get_ident()])
+                # if conn.get_ident() in f.cp.list_connections and \
+                #                 'pool_name' in f.cp.list_connections[conn.get_ident()] and \
+                #                 f.cp.list_connections[conn.get_ident()]['pool_name'] == f.conn_name:
+                payload = self.process(*args, **kwargs)
+                if payload != None:
+                    if isinstance(payload, (tuple, list)):
+                        log.info("payload")
+                        # for key, value in payload.items():
+                        #     log.info([key, value])
+                        log.info(payload)
+                        log.info(self.event)
+                        conn.writeJsonRequest(self.event, payload, is_notification=True)
+                        self.after_emit(*args, **kwargs)
+                        log.info('RPC was sent to %s from %s' % (f.cp.list_connections[conn.get_ident()]['proxy_username'], f.conn_name))
+                    else:
+                        raise Exception("Return object from process() method must be list or None")
+                # else:
+                #     log.info('wrong subscription')
         except AttributeError:
             i = 1
 
@@ -334,11 +350,7 @@ class StratumProxyService(GenericService):
             tail = subs_keys['tail']
             # self._cp.new_users.pop(self.connection_ref().get_ident())
             # log.info('ACTIVATING USER IN DATABASE')
-            # log.info('ACTIVATING USER IN DATABASE')
-            # log.info('ACTIVATING USER IN DATABASE')
             # log.info([pool_worker['username'], pool_worker['password'], f.conn_name])
-            # log.info('ACTIVATING USER IN DATABASE')
-            # log.info('ACTIVATING USER IN DATABASE')
             # log.info('ACTIVATING USER IN DATABASE')
             database.activate_user_worker(pool_worker['username'], pool_worker['password'], f.conn_name)
             tmp_dict = {
@@ -351,6 +363,9 @@ class StratumProxyService(GenericService):
 
             }
             self._cp.list_connections[self.connection_ref().get_ident()].update(tmp_dict)
+            log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
+            for key, value in self._cp.list_connections[self.connection_ref().get_ident()].items():
+                log.info([key, value])
             # self._cp.list_connections[self.connection_ref().get_ident()]['proxy username'] = proxyusername
             # self._cp.list_connections[self.connection_ref().get_ident()]['proxy_password'] = password
             # self._cp.list_connections[self.connection_ref().get_ident()]['pool_worker_username'] = pool_worker['username']
@@ -542,8 +557,11 @@ class StratumProxyService(GenericService):
                 # f.pubsub.unsubscribe(self.connection_ref())
                 f.pubsub.unsubscribe(self.connection_ref(), subscription=f.difficulty_subscription, key=subs1[1])
                 f.pubsub.unsubscribe(self.connection_ref(), subscription=f.mining_subscription, key=subs2[1])
-                # defer.returnValue(((subs1, subs2),) + (tail, extranonce2_size))  # April 15
-                defer.returnValue(((subs1, subs2),) + ('', extranonce2_size+1))  # April 15
+                # for subscription in f.pubsub.iterate_subscribers('mining.notify'):
+                #     log.info(subscription)
+                #     log.info(self.connection_ref().get_ident())
+                # defer.returnValue(((subs1, subs2),) + (tail, extranonce2_size))
+                defer.returnValue(((subs1, subs2),) + ('', extranonce2_size+1))
                 # defer.returnValue(((subs1, subs2),) + (tail, 4))
         else:
             f = self._cp.get_connection(ip=ip, port=port)
@@ -626,17 +644,14 @@ class StratumProxyService(GenericService):
         if f is None:
             defer.returnValue(False)
         proxy_username = worker_name
-        try:
-            worker_name = f.cp.list_users[f.conn_name][worker_name]['pool_worker_username']
-        except KeyError:        
-            worker = database.get_worker(host=f.main_host[0], port=f.main_host[1], proxy_username=worker_name, pool_id=str(f.conn_name))
-            if worker:
-                worker_name = worker['remoteUsername']
-            else:
-                # log.info('problem here')
-                # log.info('problem here')
-                # log.info('problem here')
-                defer.returnValue(False)
+        worker = database.get_worker(host=f.main_host[0], port=f.main_host[1], proxy_username=worker_name, pool_id=str(f.conn_name))
+        if worker:
+            worker_name = worker['remoteUsername']
+        else:
+            # log.info('problem here')
+            # log.info('problem here')
+            # log.info('problem here')
+            defer.returnValue(False)
         # log.info(worker_name)
         if f.client is None or not f.client.connected:
             raise SubmitException("Upstream not connected")
@@ -646,7 +661,7 @@ class StratumProxyService(GenericService):
             # log.info(self.connection_ref().get_ident())
             # log.info(self._cp.users)
             # log.info(self._cp.users[self.connection_ref().get_ident()])
-            tail = self._cp.users[self.connection_ref().get_ident()]['tail']
+            tail = self._cp.list_connections[self.connection_ref().get_ident()]['tail']
         except KeyError:
             tail = session.get('tail')
         if tail == None:

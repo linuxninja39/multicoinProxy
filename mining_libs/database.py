@@ -83,7 +83,8 @@ def get_pools():
         JOIN CoinService ON CoinService.coinId = Coin.id \
         JOIN Service ON Service.id = CoinService.serviceId \
         JOIN Host ON Host.id = Service.hostId \
-        WHERE Service.active = TRUE AND Host.name != 'pool.d2.cc'\
+        WHERE Service.active = TRUE\
+        ORDER BY Coin.profitability DESC\
         "
     ).fetchall()
     # log.info(pools)

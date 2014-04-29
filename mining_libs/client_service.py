@@ -90,6 +90,7 @@ class ClientMiningService(GenericEventHandler):
 
             # host = connection_ref.transport.getPeer().host
             # ip =
+            # clean_jobs = True
             ip = connection_ref.proxied_ip or connection_ref.transport.getPeer().host
             port = connection_ref.transport.getPeer().port
                 # if self.cp:
@@ -107,6 +108,9 @@ class ClientMiningService(GenericEventHandler):
             # log.info(f.extranonce1)
             # log.info(f)
             # log.info(f.conn_name)
+            log.info('-------------------------------------------------------------------')
+            log.info(clean_jobs)
+            log.info('-------------------------------------------------------------------')
             (tail, extranonce2_size) = stratum_listener.StratumProxyService._get_unused_tail(f)
             dcoinb1 = json.dumps(coinb1)
             ncoinb1 = json.loads(dcoinb1[:-1] + str(f.extranonce1) + dcoinb1[-1:])
@@ -115,9 +119,13 @@ class ClientMiningService(GenericEventHandler):
             njob_id = json.loads(djob_id[:-1] + '_' + str(f.conn_name) + djob_id[-1:])
             # log.info('database here')
             database.add_new_job(job_id, extranonce2_size, f.extranonce1, f.conn_name, str(str(f.main_host[0]) + ':' + str(f.main_host[1])))
+            log.info('==================================================================')
+            log.info(f.conn_name)
+            log.info(f.mining_subscription)
+            log.info('==================================================================')
             f.mining_subscription.on_template(
                             # job_id + '_' + str(f.conn_name), prevhash, str(coinb1) + str(f.job_registry.extranonce1_bin), coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
-                            njob_id, prevhash, ncoinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs, f=f)
+                            njob_id, prevhash, ncoinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
 
             # Broadcast to getwork clients
             job = Job.build_from_broadcast(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime)

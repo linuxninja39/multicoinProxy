@@ -164,8 +164,13 @@ class JobRegistry(object):
     def add_template(self, template, clean_jobs):
         if clean_jobs:
             # Pool asked us to stop submitting shares from previous jobs
+            log.info("Pool asked us to stop submitting shares from previous jobs")
             self.jobs = []
-            
+        log.info("jobs")
+        log.info(self.f.conn_name)
+        for job in self.jobs:
+            log.info(job.job_id)
+        log.info("jobs")
         self.jobs.append(template)
         self.last_job = template
 
@@ -181,8 +186,8 @@ class JobRegistry(object):
         if clean_jobs:
             # Force miners to reload jobs
             on_block = self.on_block
-            self.on_block = defer.Deferred()
-            on_block.callback(True)
+            # self.on_block = defer.Deferred()
+            # on_block.callback(True)
     
             # blocknotify-compatible call
             self.execute_cmd(template.prevhash)

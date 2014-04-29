@@ -110,6 +110,17 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
         if mining_subscription is None:
             self.mining_subscription = MiningSubscription()
             self.mining_subscription.f = self
+            log.info(self.mining_subscription.f)
+            log.info(self.mining_subscription.f)
+            log.info(self.mining_subscription.f)
+            log.info(self.mining_subscription.f)
+            log.info(self.mining_subscription.f)
+            log.info(self.mining_subscription.f)
+            log.info(self.mining_subscription.f)
+            log.info(self.mining_subscription.f)
+            log.info(self.mining_subscription.f)
+            log.info(self.mining_subscription.f)
+            log.info(self.mining_subscription.f)
         else:
             self.mining_subscription = mining_subscription
         return self.mining_subscription
@@ -118,6 +129,19 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
         if difficulty_subscription is None:
             self.difficulty_subscription = DifficultySubscription()
             self.difficulty_subscription.f = self
+            log.info(self.difficulty_subscription.f)
+            log.info(self.difficulty_subscription.f)
+            log.info(self.difficulty_subscription.f)
+            log.info(self.difficulty_subscription.f)
+            log.info(self.difficulty_subscription.f)
+            log.info(self.difficulty_subscription.f)
+            log.info(self.difficulty_subscription.f)
+            log.info(self.difficulty_subscription.f)
+            log.info(self.difficulty_subscription.f)
+            log.info(self.difficulty_subscription.f)
+            log.info(self.difficulty_subscription.f)
+            log.info(self.difficulty_subscription.f)
+            log.info(self.difficulty_subscription.f)
         else:
             self.difficulty_subscription = difficulty_subscription
         return self.difficulty_subscription
@@ -182,6 +206,7 @@ class Pubsub(object):
             # Subscription don't need to be removed from cls.__subscriptions,
             # because it uses weak reference there.
             del session['subscriptions'][key]
+            log.info(session['subscriptions'])
         except KeyError:
             print "Warning: Cannot remove subscription from connection session"
             return False
@@ -220,9 +245,35 @@ class Pubsub(object):
             yield subscription
 
     # @classmethod
-    def emit(self, event, *args, **kwargs):
+    def emit(self, gsubscription, *args, **kwargs):
+        event = gsubscription.event
+        log.info(gsubscription)
+        log.info(gsubscription.f.conn_name)
         count = 0
-        f = kwargs.get('f', None)
-        for subscription in self.iterate_subscribers(event):
-            if subscription.f.conn_name == f.conn_name:
-                subscription.emit_single(*args, **kwargs)
+        # f = kwargs.get('f', None)
+        # log.info(f)
+        f = self.f
+        log.info(self)
+        log.info(self.f.conn_name)
+        for subscription in gsubscription.f.pubsub.iterate_subscribers(event):
+            log.info('for method start')
+            log.info(subscription.f.conn_name)
+            log.info('for method end')
+            # if subscription.f.conn_name == f.conn_name:
+            conn = subscription.connection_ref()
+            #     for key, value in f.cp.list_connections[conn.get_ident()].items():
+            #         log.info([key, value])
+            if conn != None:
+                if conn.get_ident() in f.cp.list_connections:
+                    if 'pool_name' in f.cp.list_connections[conn.get_ident()]:
+                        if f.cp.list_connections[conn.get_ident()]['pool_name'] == gsubscription.f.conn_name:
+                            subscription.emit_single(*args, **kwargs)
+                        else:
+                            log.info('pool_name != f.conn_name')
+                            log.info(f.cp.list_connections[conn.get_ident()]['pool_name'])
+                            log.info(gsubscription.f.conn_name)
+                            log.info(conn.get_ident())
+                    else:
+                        log.info('pool_name key not in list')
+                else:
+                    log.info('conn not in list')

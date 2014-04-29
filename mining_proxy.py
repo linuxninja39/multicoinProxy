@@ -546,7 +546,7 @@ def switch_proxy(cp, periodicity, switch=False):
                                     # log.info(cp.list_connections)
                                     # log.info('cp.list_users')
                                     # log.info(cp.list_users)
-                                    new_f.difficulty_subscription.emit_single(new_f.difficulty_subscription.difficulty, f=new_f)
+                                    new_f.difficulty_subscription.emit_single(new_f.difficulty_subscription.difficulty)
                                     # # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
                                     log.info('User %s was successfully switched from %s to %s pool' % (str(user['proxy_username']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
                                     # log.info(f.cp.list_users)
@@ -747,7 +747,7 @@ def new_old_switch_proxy(cp, periodicity, switch=False):
                                 subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
                                 subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur['subs2'])[0]
                                 new_f.users[conn_ref.get_ident()] = users
-                                new_f.difficulty_subscription.emit_single(new_f.difficulty_subscription.difficulty, f=new_f)
+                                new_f.difficulty_subscription.emit_single(new_f.difficulty_subscription.difficulty)
                                 # # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
                                 log.info('User %s was successfully switched from %s to %s pool' % (str(cur['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
                                 f.cp.connection_users[f.conn_name].pop(conn_ref.get_ident(), None)
@@ -974,7 +974,7 @@ def main(args):
     else:
         proxy = None
 
-    log.warning("Trying to connect to Stratum pool at %s:%d" % (args.host, args.port))
+    # log.warning("Trying to connect to Stratum pool at %s:%d" % (args.host, args.port))
 
     cp = ConnectionPool(debug=args.verbose,
                         # proxy=proxy,
@@ -987,7 +987,7 @@ def main(args):
     )
     client_service.ClientMiningService.set_cp(cp)
     # Connect to Stratum pool
-    log.info(args.host + ':' + str(args.port))
+    # log.info(args.host + ':' + str(args.port))
     database.deactivate_all_users()  # ToDo Rewrite SQL according to new database scheme
     # cp.init_all_pools()
     cp.init_one_pool()
