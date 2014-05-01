@@ -81,7 +81,7 @@ def new_on_disconnect(f):
     f.on_disconnect.addCallback(new_on_disconnect)
 
     # stratum_listener.MiningSubscription.disconnect_all()
-    f.mining_subscription.disconnect_all()
+    f.cp.disconnect_all(f)
     database.deactivate_all_users_on_pool_start(f.conn_name)
 
     # Reject miners because we don't give a *job :-)
@@ -149,10 +149,13 @@ class ConnectionPool():
         if conn_name is None:
             if ip:
                 conn_name = self.get_pool_by_ip(ip)
-                # log.info(ip)
-                # log.info(conn_name)
+                log.info(ip)
+                log.info(conn_name)
             if conn_name is None:
                 pool = database.get_pool_id_by_host_and_port(host, port)
+                log.info("pool")
+                log.info(pool)
+                log.info("pool")
                 if pool:
                     conn_name = pool['id']
         # log.info(self._connections.keys())
@@ -256,16 +259,20 @@ class ConnectionPool():
 
     def get_pool_by_ip(self, ip):
         for conn_name in self._connections:
-            # log.info(self._connections[conn_name].ip + '------' + ip)
+            log.info(self._connections[conn_name].ip + '------' + ip)
             if self._connections[conn_name].ip == ip:
                 # log.info('returning:  ' + str(conn_name))
                 return conn_name
         pools = database.get_pools()
         import socket
         for pool in pools:
+            log.info(pool)
             pool_ip = socket.gethostbyname(pool['host'])
             pool_ip = ip.split(':')[0]
             if pool_ip == ip:
+                log.info("pool_ip")
+                log.info(pool_ip)
+                log.info("pool_ip")
                 return pool['id']
         return None
 
@@ -326,3 +333,9 @@ class ConnectionPool():
 
     def yield_on_connect(conn):
         yield conn.on_connect
+
+    def disconnect_all(self, f):
+        for subs in f.pubsub.iterate_subscribers('mining.notify'):
+            if subs.connection_ref():
+                if subs.connection_ref().transport:
+                    subs.connection_ref().transport.loseConnection()

@@ -54,15 +54,19 @@ class DifficultySubscription(Subscription):
     # @classmethod
     def on_new_difficulty(self, new_difficulty, **kwargs):
         self.difficulty = new_difficulty
-        log.info('self.f.pubsub')
-        log.info(self.f.pubsub)
+        if 'f' not in kwargs:
+            kwargs['f'] = self.f
         self.emit(new_difficulty, **kwargs)
 
     def emit(self, *args, **kwargs):
         '''Shortcut for emiting this event to all subscribers.'''
         if not hasattr(self, 'event'):
             raise Exception("Subscription.emit() can be used only for subclasses with filled 'event' class variable.")
-        return self.f.pubsub.emit(self, *args, **kwargs)
+        if 'f' not in kwargs:
+            return self.f.pubsub.emit(self.event, f=self.f, *args, **kwargs)
+        else:
+            return self.f.pubsub.emit(self.event, *args, **kwargs)
+
 
     def after_subscribe(self, *args):
         self.emit_single(self.difficulty, f=self.f)
@@ -77,27 +81,34 @@ class DifficultySubscription(Subscription):
         if conn == None:
             # Connection is closed
             return
-        f = kwargs.get('f', None)
+        # f = kwargs.get('f', None)
         f = self.f
         try:
-            if f:
-                ident = conn.get_ident()
-                # log.info(ident)
-                # log.info(f.users)
-                # if conn.get_ident() in f.cp.list_connections and \
-                #                 'pool_name' in f.cp.list_connections[conn.get_ident()] and \
-                #                 f.cp.list_connections[conn.get_ident()]['pool_name'] == f.conn_name:
+        #     if f:
+        # ident = conn.get_ident()
+        # log.info(ident)
+        # log.info(f.users)
+            if conn.get_ident() in f.cp.list_connections and \
+                            'pool_name' in f.cp.list_connections[conn.get_ident()] and \
+                            f.cp.list_connections[conn.get_ident()]['pool_name'] == f.conn_name:
                 payload = self.process(*args, **kwargs)
                 if payload:
                     if isinstance(payload, (tuple, list)):
                         conn.writeJsonRequest(self.event, payload, is_notification=True)
                         self.after_emit(*args, **kwargs)
-                        log.info('RPC was sent to %s from %s' % (f.cp.list_connections[conn.get_ident()]['proxy_username'], f.conn_name))
+                        # log.info('RPC was sent')
+                        try:
+                            log.info('RPC was sent to %s from %s' % (f.cp.list_connections[conn.get_ident()]['proxy_username'], f.conn_name))
+                        except KeyError:
+                            log.info('RPC was sent from %s' % f.conn_name)
                     else:
                         raise Exception("Return object from process() method must be list or None")
+            else:
+                log.info('was trying to send wrong rpc to user')
         except AttributeError:
-
-            i = 1
+            #@ToDo conn is none, so it have to be removed from all the lists
+            f.del_mining_subscription(mining_subscription=self)
+            f.pubsub.unsubscribe(conn, self)
 
 
 class MiningSubscription(Subscription):
@@ -131,6 +142,9 @@ class MiningSubscription(Subscription):
         # log.info(self)
         # log.info(id(self))
         self.last_broadcast = (job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
+        if 'f' not in kwargs:
+            kwargs['f'] = self.f
+        log.info('on_template')
         self.emit(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs, **kwargs)
 
     def _finish_after_subscribe(self, result, f):
@@ -152,11 +166,12 @@ class MiningSubscription(Subscription):
 
     def emit(self, *args, **kwargs):
         '''Shortcut for emiting this event to all subscribers.'''
+        log.info('emit')
         if not hasattr(self, 'event'):
             raise Exception("Subscription.emit() can be used only for subclasses with filled 'event' class variable.")
-        log.info('self.f.pubsub')
-        log.info(self.f.pubsub)
-        return self.f.pubsub.emit(self, *args, **kwargs)
+        if 'f' not in kwargs:
+            kwargs['f'] = self.f
+        return self.f.pubsub.emit(self.event, *args, **kwargs)
 
     def emit_single(self, *args, **kwargs):
         '''Perform emit of this event just for current subscription.'''
@@ -166,16 +181,16 @@ class MiningSubscription(Subscription):
             return
         # f = kwargs.get('f', None)
         f = self.f
-        log.info('emit single for %s' % f.conn_name)
+        # log.info('emit single for %s' % f.conn_name)
         try:
-            if f:
-                ident = conn.get_ident()
-                # log.info(ident)
-                # log.info(f.users)
-                # log.info(f.cp.list_connections[conn.get_ident()])
-                # if conn.get_ident() in f.cp.list_connections and \
-                #                 'pool_name' in f.cp.list_connections[conn.get_ident()] and \
-                #                 f.cp.list_connections[conn.get_ident()]['pool_name'] == f.conn_name:
+        #     if f:
+        # ident = conn.get_ident()
+        # log.info(ident)
+        # log.info(f.users)
+        # log.info(f.cp.list_connections[conn.get_ident()])
+            if conn.get_ident() in f.cp.list_connections and \
+                            'pool_name' in f.cp.list_connections[conn.get_ident()] and \
+                            f.cp.list_connections[conn.get_ident()]['pool_name'] == f.conn_name:
                 payload = self.process(*args, **kwargs)
                 if payload != None:
                     if isinstance(payload, (tuple, list)):
@@ -186,13 +201,21 @@ class MiningSubscription(Subscription):
                         log.info(self.event)
                         conn.writeJsonRequest(self.event, payload, is_notification=True)
                         self.after_emit(*args, **kwargs)
-                        log.info('RPC was sent to %s from %s' % (f.cp.list_connections[conn.get_ident()]['proxy_username'], f.conn_name))
+                        # log.info('RPC was sent')
+                        try:
+                            log.info('RPC was sent to %s from %s' % (self.f.cp.list_connections[conn.get_ident()]['proxy_username'], self.f.conn_name))
+                        except KeyError:
+                            log.info('RPC was sent from %s' % self.f.conn_name)
                     else:
                         raise Exception("Return object from process() method must be list or None")
-                # else:
-                #     log.info('wrong subscription')
+            else:
+                log.info('was trying to send wrong rpc to user')
+        # else:
+        #     log.info('wrong subscription')
         except AttributeError:
-            i = 1
+            #@ToDo conn is none, so it have to be removed from all the lists
+            f.del_difficulty_subscription(difficulty_subscription=self)
+            f.pubsub.unsubscribe(conn, self)
 
 
 class StratumProxyService(GenericService):
@@ -271,6 +294,8 @@ class StratumProxyService(GenericService):
         if tail in f.registered_tails:
             f.registered_tails.remove(tail)
             f.cp.list_connections.pop(self.connection_ref().get_ident(), None)
+            f.del_difficulty_subscription(conn_ref=self.connection_ref().get_ident())
+            f.del_mining_subscription(conn_ref=self.connection_ref().get_ident())
         else:
             log.error("Given extranonce is not registered1")
         return result
@@ -343,9 +368,11 @@ class StratumProxyService(GenericService):
         if self.connection_ref().get_ident() in self._cp.list_connections:
             subs_keys = self._cp.list_connections[self.connection_ref().get_ident()]
             # log.info(subs_keys)
-            subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription, subs_keys['subs1'])[0]
+            difficulty_subscription = f.add_difficulty_subscription(self.connection_ref().get_ident())
+            mining_subscription = f.add_mining_subscription(self.connection_ref().get_ident())
+            subs1 = f.pubsub.subscribe(self.connection_ref(), difficulty_subscription, subs_keys['subs1'])[0]
             # log.info(subs1)
-            subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription, subs_keys['subs2'])[0]
+            subs2 = f.pubsub.subscribe(self.connection_ref(), mining_subscription, subs_keys['subs2'])[0]
             # log.info(subs2)
             tail = subs_keys['tail']
             # self._cp.new_users.pop(self.connection_ref().get_ident())
@@ -364,81 +391,16 @@ class StratumProxyService(GenericService):
             }
             self._cp.list_connections[self.connection_ref().get_ident()].update(tmp_dict)
             log.info('SUBSCRIBE METHOD IN AUTHORIZE HERE')
-            for key, value in self._cp.list_connections[self.connection_ref().get_ident()].items():
-                log.info([key, value])
-            # self._cp.list_connections[self.connection_ref().get_ident()]['proxy username'] = proxyusername
-            # self._cp.list_connections[self.connection_ref().get_ident()]['proxy_password'] = password
-            # self._cp.list_connections[self.connection_ref().get_ident()]['pool_worker_username'] = pool_worker['username']
-            # self._cp.list_connections[self.connection_ref().get_ident()]['pool_worker_password'] = pool_worker['password']
-            # self._cp.list_connections[self.connection_ref().get_ident()]['pool_name'] = f.conn_name
-            # self._cp.list_connections[self.connection_ref().get_ident()]['conn_ref'] = self.connection_ref()
+            # for key, value in self._cp.list_connections[self.connection_ref().get_ident()].items():
+            #     log.info([key, value])
             if proxyusername not in self._cp.list_users[f.conn_name]:
                 self._cp.list_users[f.conn_name][proxyusername] = self._cp.list_connections[self.connection_ref().get_ident()]
                 if 'connections' not in self._cp.list_users[f.conn_name][proxyusername]:
                     self._cp.list_users[f.conn_name][proxyusername].update({'connections':  []})
                     self._cp.list_users[f.conn_name][proxyusername]['connections'] += [self.connection_ref().get_ident()]
-            # f.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
-            # f.cp.connection_users[f.conn_name][self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
-            # f.usernames[proxyusername][self.connection_ref().get_ident()] = f.users[self.connection_ref().get_ident()]
-            # if proxyusername not in f.usernames:
-            #     f.usernames[proxyusername] = {'conn_name': f.conn_name, 'connections': []}
-            # if self.connection_ref().get_ident() not in f.usernames[proxyusername]['connections']:
-            #     f.usernames[proxyusername]['connections'] += [self.connection_ref().get_ident(), ]
-            # f.connections.set(self.connection_ref().get_ident(), proxyusername)
-            # f.pool.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
-            # # f.pool.usernames[proxyusername] = f.pool.users[self.connection_ref().get_ident()]
-            # if proxyusername not in f.pool.usernames:
-            #     f.pool.usernames[proxyusername] = {'conn_name': f.conn_name, 'connections': []}
-            # if self.connection_ref().get_ident() not in f.pool.usernames[proxyusername]['connections']:
-            #     f.pool.usernames[proxyusername]['connections'] += [self.connection_ref().get_ident(), ]
-            # # f.pool.usernames[proxyusername] += [self.connection_ref().get_ident(), ]
-            # f.pool.connections.set(self.connection_ref().get_ident(), proxyusername)
-            f.difficulty_subscription.emit_single(f.difficulty_subscription.difficulty, f=f)
+            difficulty_subscription.emit_single(difficulty_subscription.difficulty, f=f)
         ###################################################################################################################################################
-        # if self.connection_ref().get_ident() in self._cp.new_users:
-        #     subs_keys = self._cp.new_users[self.connection_ref().get_ident()]
-        #     log.info(subs_keys)
-        #     subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription, subs_keys[0])[0]
-        #     # log.info(subs1)
-        #     subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription, subs_keys[1])[0]
-        #     # log.info(subs2)
-        #     tail = subs_keys[2]
-        #     self._cp.new_users.pop(self.connection_ref().get_ident())
-        #     # log.info('ACTIVATING USER IN DATABASE')
-        #     # log.info('ACTIVATING USER IN DATABASE')
-        #     # log.info('ACTIVATING USER IN DATABASE')
-        #     # log.info([pool_worker['username'], pool_worker['password'], f.conn_name])
-        #     # log.info('ACTIVATING USER IN DATABASE')
-        #     # log.info('ACTIVATING USER IN DATABASE')
-        #     # log.info('ACTIVATING USER IN DATABASE')
-        #     database.activate_user_worker(pool_worker['username'], pool_worker['password'], f.conn_name)
-        #     f.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
-        #     f.cp.connection_users[f.conn_name][self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
-        #     # f.usernames[proxyusername][self.connection_ref().get_ident()] = f.users[self.connection_ref().get_ident()]
-        #     if proxyusername not in f.usernames:
-        #         f.usernames[proxyusername] = {'conn_name': f.conn_name, 'connections': []}
-        #     if self.connection_ref().get_ident() not in f.usernames[proxyusername]['connections']:
-        #         f.usernames[proxyusername]['connections'] += [self.connection_ref().get_ident(), ]
-        #     f.connections.set(self.connection_ref().get_ident(), proxyusername)
-        #     f.pool.users[self.connection_ref().get_ident()] = {'proxyusername': proxyusername, 'password': password, 'pool_worker_username': pool_worker['username'], 'pool_worker_password': pool_worker['password'], 'conn_name': f.conn_name, 'tail': tail, 'conn_ref': self.connection_ref(), 'subs1': subs_keys[0], 'subs2': subs_keys[1], 'extranonce2_size': subs_keys[3]}
-        #     # f.pool.usernames[proxyusername] = f.pool.users[self.connection_ref().get_ident()]
-        #     if proxyusername not in f.pool.usernames:
-        #         f.pool.usernames[proxyusername] = {'conn_name': f.conn_name, 'connections': []}
-        #     if self.connection_ref().get_ident() not in f.pool.usernames[proxyusername]['connections']:
-        #         f.pool.usernames[proxyusername]['connections'] += [self.connection_ref().get_ident(), ]
-        #     # f.pool.usernames[proxyusername] += [self.connection_ref().get_ident(), ]
-        #     f.pool.connections.set(self.connection_ref().get_ident(), proxyusername)
-        # if self.connection_ref().get_ident() in self._cp.new_users:
-        #     # f.difficulty_subscription.on_new_difficulty(f.difficulty_subscription.difficulty)  # Rework this, as this will affect all users
-        #     f.difficulty_subscription.emit_single(f.difficulty_subscription.difficulty, f=f)
-        #     # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
-        #     # f.job_registry.set_difficulty(f.difficulty_subscription.difficulty)
         result = (yield f.rpc('mining.authorize', [pool_worker['username'], pool_worker['password']]))
-        # log.info([pool_worker['username'], pool_worker['password']])
-        # log.info(proxyusername)
-        # log.info(f.main_host)
-        # log.info(result)
-        # log.info(result)
         defer.returnValue(result)
 
     # @defer.inlineCallbacks
@@ -537,10 +499,11 @@ class StratumProxyService(GenericService):
 
                 # Remove extranonce from registry when client disconnect
                 self.connection_ref().on_disconnect.addCallback(self._drop_tail, tail=tail, f=f)
-
-                subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription)[0]
+                difficulty_subscription = f.add_difficulty_subscription(self.connection_ref().get_ident())
+                mining_subscription = f.add_mining_subscription(self.connection_ref().get_ident())
+                subs1 = f.pubsub.subscribe(self.connection_ref(), difficulty_subscription)[0]
                 # log.info(subs1)
-                subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription)[0]
+                subs2 = f.pubsub.subscribe(self.connection_ref(), mining_subscription)[0]
                 # log.info(subs2)
                 self._cp.list_connections[self.connection_ref().get_ident()] = \
                 {
@@ -555,8 +518,10 @@ class StratumProxyService(GenericService):
                 # log.info('new users tail: ' + str(tail))
                 # defer.returnValue(((subs1, subs2),) + (f.extranonce1, extranonce2_size))
                 # f.pubsub.unsubscribe(self.connection_ref())
-                f.pubsub.unsubscribe(self.connection_ref(), subscription=f.difficulty_subscription, key=subs1[1])
-                f.pubsub.unsubscribe(self.connection_ref(), subscription=f.mining_subscription, key=subs2[1])
+                f.pubsub.unsubscribe(self.connection_ref(), subscription=difficulty_subscription, key=subs1[1])
+                f.pubsub.unsubscribe(self.connection_ref(), subscription=mining_subscription, key=subs2[1])
+                f.del_difficulty_subscription(difficulty_subscription=difficulty_subscription, conn_ref=self.connection_ref().get_ident())
+                f.del_mining_subscription(mining_subscription=mining_subscription, conn_ref=self.connection_ref().get_ident())
                 # for subscription in f.pubsub.iterate_subscribers('mining.notify'):
                 #     log.info(subscription)
                 #     log.info(self.connection_ref().get_ident())
@@ -586,9 +551,11 @@ class StratumProxyService(GenericService):
 
             # Remove extranonce from registry when client disconnect
             self.connection_ref().on_disconnect.addCallback(self._drop_tail, tail=tail, f=f)
+            difficulty_subscription = f.add_difficulty_subscription()
+            mining_subscription = f.add_mining_subscription()
 
-            subs1 = f.pubsub.subscribe(self.connection_ref(), f.difficulty_subscription)[0]
-            subs2 = f.pubsub.subscribe(self.connection_ref(), f.mining_subscription())[0]
+            subs1 = f.pubsub.subscribe(self.connection_ref(), difficulty_subscription)[0]
+            subs2 = f.pubsub.subscribe(self.connection_ref(), mining_subscription())[0]
             # log.info('Subscribing to pool')
             # log.info('Subscribing to pool')
             # log.info('Subscribing to pool')
@@ -632,7 +599,7 @@ class StratumProxyService(GenericService):
         # log.info(worker_name)
         job_id = job_id.split('_')[0]
         # log.info('new_job_id')
-        # log.info(job_id)
+        log.info('submitting %s' % job_id)
         # log.info('new_job_id')
         # job_id = int(job_id)
         # log.info(('worker_name', 'job_id', 'extranonce2', 'ntime', 'nonce'))
@@ -702,7 +669,7 @@ class StratumProxyService(GenericService):
         response_time = (time.time() - start) * 1000
         database.increase_accepted_shares(worker_name, f.conn_name)
         database.update_job(job_id, worker_name, extranonce2, 4, True)
-        log.info("[%dms] Share from '%s' using '%s' worker on %s:%d accepted, diff %d" % (response_time, proxy_username, worker_name, f.main_host[0], f.main_host[1], f.difficulty_subscription.difficulty))
+        log.info("[%dms] Share from '%s' using '%s' worker on %s:%d accepted, diff %d" % (response_time, proxy_username, worker_name, f.main_host[0], f.main_host[1], f.job_registry.difficulty))
         defer.returnValue(result)
 
     # @defer.inlineCallbacks

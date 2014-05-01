@@ -13,6 +13,7 @@ def get_worker(host, port, proxy_username, pool_id, password=None):
     The worker credentials used to auth in the proxy are in the worker table
     """
     # log.info(host, port, username, password)
+    log.info([host, port, proxy_username, pool_id, password])
     worker = session.execute(
         "\
         SELECT Worker.id, ServiceUser.remoteWorkerName AS name, ServiceUser.remoteWorkerPass AS password, Worker.password AS userpassword FROM Worker \
@@ -20,7 +21,7 @@ def get_worker(host, port, proxy_username, pool_id, password=None):
         LEFT JOIN ServiceUser ON ServiceUser.userId = User.id \
         LEFT JOIN Service ON Service.id = ServiceUser.serviceId \
         LEFT JOIN Host ON Service.hostId = Host.id \
-        WHERE Worker.name = :proxy_username AND Service.id = :pool_id \
+        WHERE Worker.name = :proxy_username AND Service.id = :pool_id AND Service.active = TRUE\
         ",
         {'host': host, 'port': port, 'proxy_username': proxy_username, 'pool_id': str(pool_id)}
     ).first()
@@ -83,7 +84,7 @@ def get_pools():
         JOIN CoinService ON CoinService.coinId = Coin.id \
         JOIN Service ON Service.id = CoinService.serviceId \
         JOIN Host ON Host.id = Service.hostId \
-        WHERE Service.active = TRUE\
+        WHERE Service.active = TRUE AND Host.name != 'pool.d2.cc'\
         ORDER BY Coin.profitability DESC\
         "
     ).fetchall()
@@ -186,8 +187,10 @@ def get_best_pool_and_worker_by_proxy_user(proxy_username, proxy_password):
             WHERE UserCoin.mine = TRUE \
             AND Worker.name = :proxy_username \
             AND Worker.password = :proxy_password \
+            AND Service.active = TRUE \
             ) \
-        AND Worker.name = :proxy_username AND Worker.password = :proxy_password AND UserCoin.mine = TRUE \
+        AND Worker.name = :proxy_username AND Worker.password = :proxy_password \
+        AND Service.active = TRUE AND UserCoin.mine = TRUE \
         ", # Order by added temporarily
         {
             'proxy_username': proxy_username,

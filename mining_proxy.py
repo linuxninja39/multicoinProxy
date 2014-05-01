@@ -483,8 +483,10 @@ def switch_proxy(cp, periodicity, switch=False):
                                     str_conn_ref = conn_ref
                                     conn_ref = cur['conn_ref']
                                     if conn_ref is not None:
-                                        f.pubsub.unsubscribe(conn_ref, subscription=f.difficulty_subscription, key=cur['subs1'])
-                                        f.pubsub.unsubscribe(conn_ref, subscription=f.mining_subscription, key=cur['subs2'])
+                                        mining_subscription = f.del_mining_subscription(conn_ref=conn_ref)
+                                        difficulty_subscription = f.del_difficulty_subscription(conn_ref=conn_ref)
+                                        # f.pubsub.unsubscribe(conn_ref, subscription=f.difficulty_subscription, key=cur['subs1'])
+                                        # f.pubsub.unsubscribe(conn_ref, subscription=f.mining_subscription, key=cur['subs2'])
                                         # for usr in switch_users:
                                         #     if usr['proxy_username'] != cur_user['proxyusername']:
                                         #         if cur_user['proxyusername'] in used:
@@ -538,15 +540,24 @@ def switch_proxy(cp, periodicity, switch=False):
                                     # log.info('subscribing user %s on %s' % (str(conn_ref), new_f.conn_name))
                                     # log.info('subscribing user %s on %s' % (str(conn_ref), new_f.conn_name))
                                     # log.info('subscribing user %s on %s' % (str(conn_ref), new_f.conn_name))
-                                    subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
-                                    subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur['subs2'])[0]
+                                    if mining_subscription:
+                                        difficulty_subscription = new_f.add_mining_subscription(conn_ref=str_conn_ref, mining_subscription=mining_subscription)
+                                    else:
+                                        difficulty_subscription = new_f.add_mining_subscription(conn_ref=str_conn_ref)
+                                    if difficulty_subscription:
+                                        difficulty_subscription = new_f.add_difficulty_subscription(conn_ref=str_conn_ref, difficulty_subscription=difficulty_subscription)
+                                    else:
+                                        difficulty_subscription = new_f.add_difficulty_subscription(conn_ref=str_conn_ref)
+
+                                    # subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
+                                    # subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur['subs2'])[0]
                                     # new_f.users[conn_ref.get_ident()] = users
                                     cp.list_connections[str_conn_ref] = new_user_info  # Move this
                                     # log.info('cp.list_connections')
                                     # log.info(cp.list_connections)
                                     # log.info('cp.list_users')
                                     # log.info(cp.list_users)
-                                    new_f.difficulty_subscription.emit_single(new_f.difficulty_subscription.difficulty)
+                                    difficulty_subscription.emit_single(conn_ref, new_f.difficulty_subscription.difficulty)
                                     # # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
                                     log.info('User %s was successfully switched from %s to %s pool' % (str(user['proxy_username']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
                                     # log.info(f.cp.list_users)
@@ -747,7 +758,7 @@ def new_old_switch_proxy(cp, periodicity, switch=False):
                                 subs1 = new_f.pubsub.subscribe(conn_ref, new_f.difficulty_subscription, cur['subs1'])[0]
                                 subs2 = new_f.pubsub.subscribe(conn_ref, new_f.mining_subscription, cur['subs2'])[0]
                                 new_f.users[conn_ref.get_ident()] = users
-                                new_f.difficulty_subscription.emit_single(new_f.difficulty_subscription.difficulty)
+                                new_f.difficulty_subscription.emit_single(conn_ref, new_f.difficulty_subscription.difficulty)
                                 # # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
                                 log.info('User %s was successfully switched from %s to %s pool' % (str(cur['proxyusername']), str(str(f.main_host[0]) + ':' + str(f.main_host[1])), str(str(new_f.main_host[0]) + ':' + str(new_f.main_host[1]))))
                                 f.cp.connection_users[f.conn_name].pop(conn_ref.get_ident(), None)
@@ -1089,7 +1100,7 @@ def main(args):
         log.warning("-----------------------------------------------------------------------")
         switch_proxy(cp, args.switch_periodicity, False)
         # reactor.callLater(args.switch_periodicity, test_switch_proxy, cp=cp, periodicity=args.switch_periodicity, switch=True)
-    reactor.callLater(1800, restart_program)
+    # reactor.callLater(1800, restart_program)
 
 
 if __name__ == '__main__':

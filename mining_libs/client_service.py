@@ -95,8 +95,8 @@ class ClientMiningService(GenericEventHandler):
             port = connection_ref.transport.getPeer().port
                 # if self.cp:
             f = self.cp.get_connection(ip=ip, port=port)
-            # log.info(ip)
-            # log.info(port)
+            log.info(ip)
+            log.info(port)
             log.info("Proxy just received information about new mining job (%s) on '%s:%d' pool" % (str(job_id), f.main_host[0], f.main_host[1]))
 
             # Broadcast to Stratum clients
@@ -121,11 +121,15 @@ class ClientMiningService(GenericEventHandler):
             database.add_new_job(job_id, extranonce2_size, f.extranonce1, f.conn_name, str(str(f.main_host[0]) + ':' + str(f.main_host[1])))
             log.info('==================================================================')
             log.info(f.conn_name)
-            log.info(f.mining_subscription)
+            log.info(len(f.mining_subscriptions))
             log.info('==================================================================')
-            f.mining_subscription.on_template(
-                            # job_id + '_' + str(f.conn_name), prevhash, str(coinb1) + str(f.job_registry.extranonce1_bin), coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
-                            njob_id, prevhash, ncoinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
+            for conn_ref in f.mining_subscriptions:
+                log.info(conn_ref)
+                log.info(f.mining_subscriptions[conn_ref])
+                if f.mining_subscriptions[conn_ref].f.conn_name == f.conn_name:
+                    f.mining_subscriptions[conn_ref].on_template(njob_id, prevhash, ncoinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
+                                # job_id + '_' + str(f.conn_name), prevhash, str(coinb1) + str(f.job_registry.extranonce1_bin), coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
+                                # njob_id, prevhash, ncoinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
 
             # Broadcast to getwork clients
             job = Job.build_from_broadcast(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime)
@@ -145,7 +149,9 @@ class ClientMiningService(GenericEventHandler):
                 # if self.cp:
             f = self.cp.get_connection(ip=ip, port=port)
             log.info("Setting new difficulty on '%s:%d' pool: %s" % (f.main_host[0], f.main_host[1], difficulty))
-            f.difficulty_subscription.on_new_difficulty(difficulty, f=f)
+            for conn_ref in f.difficulty_subscriptions:
+                if f.difficulty_subscriptions[conn_ref].f.conn_name == f.conn_name:
+                    f.difficulty_subscriptions[conn_ref].on_new_difficulty(difficulty, f=f)
             # stratum_listener.DifficultySubscription.on_new_difficulty(difficulty)
             f.job_registry.set_difficulty(difficulty)
             # self.job_registry.set_difficulty(difficulty)

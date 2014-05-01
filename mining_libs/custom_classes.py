@@ -97,6 +97,8 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
         self.connected = False
         self.pubsub = Pubsub()
         self.pubsub.f = self
+        self.mining_subscriptions = {}
+        self.difficulty_subscriptions = {}
         # self.users = {}
         # self.new_users = []
 
@@ -111,48 +113,71 @@ class CustomSocketTransportClientFactory(SocketTransportClientFactory):
             self.mining_subscription = MiningSubscription()
             self.mining_subscription.f = self
             log.info(self.mining_subscription.f)
-            log.info(self.mining_subscription.f)
-            log.info(self.mining_subscription.f)
-            log.info(self.mining_subscription.f)
-            log.info(self.mining_subscription.f)
-            log.info(self.mining_subscription.f)
-            log.info(self.mining_subscription.f)
-            log.info(self.mining_subscription.f)
-            log.info(self.mining_subscription.f)
-            log.info(self.mining_subscription.f)
-            log.info(self.mining_subscription.f)
         else:
             self.mining_subscription = mining_subscription
         return self.mining_subscription
+
+    def add_mining_subscription(self, conn_ref, mining_subscription=None):
+        if not mining_subscription:
+            mining_subscription = MiningSubscription()
+        mining_subscription.f = self
+        self.mining_subscriptions[conn_ref] = mining_subscription
+        return mining_subscription
+
+    def del_mining_subscription(self, mining_subscription=None, conn_ref=None):
+        if conn_ref:
+            ms = self.mining_subscriptions.pop(conn_ref, None)
+            if ms:
+                return True
+            return False
+        if mining_subscription:
+            for conn_ref in self.mining_subscriptions:
+                if self.mining_subscriptions[conn_ref] == mining_subscription:
+                    ms = self.mining_subscriptions.pop(conn_ref, None)
+                    if ms:
+                        return True
+                    return False
+        return False
 
     def set_difficulty_subscription(self, difficulty_subscription=None):
         if difficulty_subscription is None:
             self.difficulty_subscription = DifficultySubscription()
             self.difficulty_subscription.f = self
             log.info(self.difficulty_subscription.f)
-            log.info(self.difficulty_subscription.f)
-            log.info(self.difficulty_subscription.f)
-            log.info(self.difficulty_subscription.f)
-            log.info(self.difficulty_subscription.f)
-            log.info(self.difficulty_subscription.f)
-            log.info(self.difficulty_subscription.f)
-            log.info(self.difficulty_subscription.f)
-            log.info(self.difficulty_subscription.f)
-            log.info(self.difficulty_subscription.f)
-            log.info(self.difficulty_subscription.f)
-            log.info(self.difficulty_subscription.f)
-            log.info(self.difficulty_subscription.f)
         else:
             self.difficulty_subscription = difficulty_subscription
         return self.difficulty_subscription
+
+    def add_difficulty_subscription(self, conn_ref, difficulty_subscription=None):
+        if not difficulty_subscription:
+            difficulty_subscription = DifficultySubscription()
+        difficulty_subscription.f = self
+        self.difficulty_subscriptions[conn_ref] = difficulty_subscription
+        return difficulty_subscription
+
+    def del_difficulty_subscription(self, difficulty_subscription=None, conn_ref=None):
+        if conn_ref:
+            ds = self.difficulty_subscriptions.pop(conn_ref, None)
+            if ds:
+                return True
+            return False
+        if difficulty_subscription:
+            for conn_ref in self.difficulty_subscriptions:
+                if self.difficulty_subscriptions[conn_ref] == difficulty_subscription:
+                    ds = self.difficulty_subscriptions.pop(conn_ref, None)
+                    if ds:
+                        return True
+                    return False
+        return False
 
     def set_job_registry(self, job_registry):
         self.job_registry = job_registry
 
 
 class Pubsub(object):
-    __subscriptions = {}
-    f = None
+    def __init__(self):
+        self.__subscriptions = {}
+        self.f = None
 
     # @classmethod
     def subscribe(self, connection, subscription, key=None):
@@ -236,7 +261,10 @@ class Pubsub(object):
 
     # @classmethod
     def iterate_subscribers(self, event):
+        log.info('iterate in f.pubsub %s (%s)' % (self.f.conn_name, event))
+        log.info(self.__subscriptions.get(event, weakref.WeakKeyDictionary()))
         for subscription in self.__subscriptions.get(event, weakref.WeakKeyDictionary()).iterkeyrefs():
+            log.info(subscription)
             subscription = subscription()
             if subscription == None:
                 # Subscriber is no more connected
@@ -245,35 +273,57 @@ class Pubsub(object):
             yield subscription
 
     # @classmethod
-    def emit(self, gsubscription, *args, **kwargs):
-        event = gsubscription.event
-        log.info(gsubscription)
-        log.info(gsubscription.f.conn_name)
+    def emit(self, event, *args, **kwargs):
+        # event = gsubscription.event
+        # log.info(gsubscription)
+        # log.info(gsubscription.f.conn_name)
         count = 0
-        # f = kwargs.get('f', None)
+        f = kwargs.get('f', None)
+        if f:
+            log.info('f in kwargs = %s' % f.conn_name)
+        kwargs.pop('f')
+        if not f:
+            log.info('f not in kwargs')
+            # f = self.f
+            # f = gsubscription.f
         # log.info(f)
-        f = self.f
-        log.info(self)
+        # f = self.f
+        log.info("args")
+        log.info(args)
+        log.info("kwargs")
+        log.info(kwargs)
         log.info(self.f.conn_name)
-        for subscription in gsubscription.f.pubsub.iterate_subscribers(event):
+        log.info("self")
+        log.info(self)
+        log.info("f")
+        log.info("f.pubsub.__subscriptions")
+        log.info(f.pubsub.__subscriptions)
+        log.info("f.pubsub.__subscriptions")
+        for subscription in f.pubsub.iterate_subscribers(event):
             log.info('for method start')
             log.info(subscription.f.conn_name)
+            # log.info(dir(subscription))
+            log.info('searching for %s' % f.conn_name)
+            log.info('self.f = %s' % self.f.conn_name)
             log.info('for method end')
             # if subscription.f.conn_name == f.conn_name:
             conn = subscription.connection_ref()
             #     for key, value in f.cp.list_connections[conn.get_ident()].items():
             #         log.info([key, value])
             if conn != None:
-                if conn.get_ident() in f.cp.list_connections:
-                    if 'pool_name' in f.cp.list_connections[conn.get_ident()]:
-                        if f.cp.list_connections[conn.get_ident()]['pool_name'] == gsubscription.f.conn_name:
-                            subscription.emit_single(*args, **kwargs)
-                        else:
-                            log.info('pool_name != f.conn_name')
-                            log.info(f.cp.list_connections[conn.get_ident()]['pool_name'])
-                            log.info(gsubscription.f.conn_name)
-                            log.info(conn.get_ident())
-                    else:
-                        log.info('pool_name key not in list')
-                else:
-                    log.info('conn not in list')
+                # if conn.get_ident() in f.cp.list_connections:
+                #     if 'pool_name' in f.cp.list_connections[conn.get_ident()]:
+                #         log.info(f.cp.list_connections[conn.get_ident()]['proxy_username'])
+                #         log.info(f.cp.list_connections[conn.get_ident()]['pool_name'])
+                        # if f.cp.list_connections[conn.get_ident()]['pool_name'] == f.conn_name:
+                        #     log.info('emitting single call on %s' % f.conn_name)
+                subscription.emit_single(*args, **kwargs)
+                #         else:
+                #             log.info('pool_name != f.conn_name')
+                #             log.info(f.cp.list_connections[conn.get_ident()]['pool_name'])
+                #             log.info(f.conn_name)
+                #             log.info(conn.get_ident())
+                #     else:
+                #         log.info('pool_name key not in list')
+                # else:
+                #     log.info('conn not in list')
