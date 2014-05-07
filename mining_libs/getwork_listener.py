@@ -6,15 +6,11 @@ from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 
 import stratum.logger
-from mining_libs import database
-from mining_libs.user_mapper import UserMapper
-
 log = stratum.logger.get_logger('proxy')
 
 class Root(Resource):
     isLeaf = True
-    host = port = None
-    userMapper = UserMapper()
+    
     def __init__(self, job_registry, workers, stratum_host, stratum_port,
                  custom_stratum=None, custom_lp=None, custom_user=None, custom_password=''):
         Resource.__init__(self)
@@ -31,9 +27,6 @@ class Root(Resource):
         resp = json.dumps({'id': msg_id, 'result': result, 'error': None})
         #print "RESPONSE", resp
         return resp
-
-    def set_host(self, host):
-        self.host = host
     
     def json_error(self, msg_id, code, message):
         resp = json.dumps({'id': msg_id, 'result': None, 'error': {'code': code, 'message': message}})
@@ -170,11 +163,6 @@ class Root(Resource):
             return NOT_DONE_YET
        
         d = defer.maybeDeferred(self.workers.authorize, worker_name, password)
-        # worker = database.get_worker(self.host, self.port, worker_name, password)
-        # worker_name = ''
-        pool_worker = database.get_best_pool_and_worker_by_proxy_user(worker_name, password)
-        if pool_worker:
-            worker_name = pool_worker['username']
         d.addCallback(self._on_authorized, request, worker_name)
         d.addErrback(self._on_failure, request)    
         return NOT_DONE_YET

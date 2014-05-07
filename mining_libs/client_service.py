@@ -1,3 +1,4 @@
+import json
 from twisted.internet import reactor
 
 from stratum.event_handler import GenericEventHandler
@@ -8,32 +9,13 @@ import version as _version
 import stratum_listener
 
 import stratum.logger
-
-
-#new import
-from twisted.internet import reactor, defer
-from stratum.socket_transport import SocketTransportFactory
-from mining_libs.custom_classes import CustomSocketTransportClientFactory as SocketTransportClientFactory
-from stratum.services import ServiceEventHandler
-# from twisted.web.server import Site
-#
-# from mining_libs import stratum_listener
-# from mining_libs import getwork_listener
-from mining_libs import jobs
-from mining_libs import worker_registry
-from mining_libs import multicast_responder
-from mining_libs import version
-from mining_libs import utils
-
-#end new import
-
 log = stratum.logger.get_logger('proxy')
 
 class ClientMiningService(GenericEventHandler):
     job_registry = None # Reference to JobRegistry instance
     timeout = None # Reference to IReactorTime object
-    switched = False
-    
+    _f = None # SocketTransportClientFactory
+
     @classmethod
     def reset_timeout(cls):
         if cls.timeout != None:
@@ -53,16 +35,14 @@ class ClientMiningService(GenericEventHandler):
         log.error("Connection to upstream pool timed out")
         cls.reset_timeout()
         cls.job_registry.f.reconnect()
-
-
-
+                
     def handle_event(self, method, params, connection_ref):
         '''Handle RPC calls and notifications from the pool'''
-        log.log(connection_ref)
+
         # Yay, we received something from the pool,
         # let's restart the timeout.
         self.reset_timeout()
-        # log.warning('Current method %s' % method )
+        
         if method == 'mining.notify':
             '''Proxy just received information about new mining job'''
             
@@ -80,10 +60,15 @@ class ClientMiningService(GenericEventHandler):
             log.debug("coinb2 = %s" % coinb2)
             log.debug("merkle_branch = %s" % merkle_branch)
             '''
+            dcoinb1 = json.dumps(coinb1)
+            ncoinb1 = json.loads(dcoinb1[:-1] + str(self._f.extranonce1) + dcoinb1[-1:])
+            # dcoinb1 = coinb1
+            djob_id = json.dumps(job_id)
+            njob_id = json.loads(djob_id[:-1] + '_' + str(self._f.conn_name) + djob_id[-1:])
         
             # Broadcast to Stratum clients
             stratum_listener.MiningSubscription.on_template(
-                            job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
+                            njob_id, prevhash, ncoinb1, coinb2, merkle_branch, version, nbits, ntime, clean_jobs)
             
             # Broadcast to getwork clients
             job = Job.build_from_broadcast(job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime)
@@ -133,13 +118,6 @@ class ClientMiningService(GenericEventHandler):
         
         elif method == 'mining.get_temperature':
             return {} # TODO
-
-        elif method == 'mining.proxy_switch':
-            (host, port) = params[:2]
-            log.info('Switching to new proxy')
-            log.warning("Trying to connect to Stratum pool at %s:%d" % (host, port))
-            stratum_listener.StratumProxyService._new_switch_proxy(host, port)
-            log.info('Switching to new proxy finished')
         
         else:
             '''Pool just asked us for something which we don't support...'''
