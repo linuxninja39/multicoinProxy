@@ -182,6 +182,7 @@ def test_update():
 def switch_proxy(f, periodicity, switch=False):
     if switch == True:
         pool = database.get_best_coin()
+        print pool
         if pool:
             (id, host, port) = pool
             log.info([id, host, port])

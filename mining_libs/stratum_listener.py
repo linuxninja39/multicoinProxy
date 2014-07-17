@@ -160,7 +160,9 @@ class StratumProxyService(GenericService):
             defer.returnValue(True)
 
 
-        pool_worker = database.get_current_pool_and_worker_by_proxy_user_and_pool_id(proxy_username, proxy_password, self._f.conn_name)
+        # pool_worker = database.get_current_pool_and_worker_by_proxy_user_and_pool_id(proxy_username, proxy_password, self._f.conn_name)
+        pool = database.get_pool_by_id(self._f.conn_name)  # NEW_CHANGES
+        pool_worker = {'username': proxy_username, 'password': proxy_password, 'host': pool['host'], 'port': pool['port']}
         if not pool_worker:
             log.info("User with local user/pass '%s:%s' doesn't have an account on our proxy" % (proxy_username, proxy_password))
             defer.returnValue(False)
@@ -216,7 +218,8 @@ class StratumProxyService(GenericService):
         try:
             worker_name = self._f.users[pool_id][proxy_username]
         except KeyError:
-            (worker_name, worker_password) = database.get_worker(proxy_username=proxy_username, pool_id=str(self._f.conn_name))
+            # (worker_name, worker_password) = database.get_worker(proxy_username=proxy_username, pool_id=str(self._f.conn_name))
+            (worker_name, worker_password) = (proxy_username, '')  # NEW_CHANGES
             if pool_id not in self._f.users:
                 self._f.users[pool_id] = {}
             self._f.users[pool_id][proxy_username] = worker_name

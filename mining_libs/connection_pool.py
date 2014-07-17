@@ -82,7 +82,7 @@ def new_on_disconnect(f):
 
     # stratum_listener.MiningSubscription.disconnect_all()
     f.cp.disconnect_all(f)
-    database.deactivate_all_users_on_pool_start(f.conn_name)
+    # database.deactivate_all_users_on_pool_start(f.conn_name)  # NEW_CHANGES
 
     # Reject miners because we don't give a *job :-)
     f.workers.clear_authorizations()
@@ -237,7 +237,7 @@ class ConnectionPool():
         self._connections[conn_name].on_connect.addCallback(new_on_connect)
         # new_on_connect(self._connections[conn_name])
         self._connections[conn_name].on_disconnect.addCallback(new_on_disconnect)
-        database.deactivate_all_users_on_pool_start(conn_name)
+        # database.deactivate_all_users_on_pool_start(conn_name) # NEW_CHANGES
         return self._connections[conn_name]
 
     def close_conn(self, conn_name):

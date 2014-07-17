@@ -152,7 +152,7 @@ class WorkerCoin(DeclarativeBase):
 from sqlalchemy.orm import sessionmaker
 session = sessionmaker(bind=engine)()
 objs = session.query(Coin).all()
-print 'All Coin objects: %s'%objs
+# print 'All Coin objects: %s'%objs
 
 print 'Trying to start IPython shell...',
 try:

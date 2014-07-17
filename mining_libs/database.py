@@ -4,7 +4,7 @@ import stratum
 import stratum.logger
 # from model import models
 
-dbEngine = create_engine('mysql+mysqldb://root:jfdojfoed8@localhost/CryptoGods', echo=False)
+dbEngine = create_engine("mysql+mysqldb://cg:as^$j23sn2@192.168.3.46:3306/cryptogods", echo=False)
 Session = sessionmaker(bind=dbEngine)
 log = stratum.logger.get_logger('proxy')
 
@@ -68,20 +68,19 @@ def get_best_coin():
     session = Session()
     pool = session.execute(
         " \
-        SELECT Service.id as id, Host.name AS host, Service.port as port FROM Coin \
-        JOIN CoinService ON CoinService.coinId = Coin.id \
-        JOIN Service ON Service.id = CoinService.serviceId \
-        JOIN Host ON Host.id = Service.hostId \
-        WHERE Coin.profitability = (SELECT MAX(c.profitability) FROM Coin c JOIN CoinService cs ON cs.coinId = c.id JOIN Service ON Service.id = cs.serviceId WHERE Service.active = TRUE) \
-        AND Service.active = TRUE\
+        SELECT service.id as id, host.name AS host, service.port as port FROM service \
+        JOIN coin on coin.id = service.coin_id \
+        JOIN host ON host.id = service.host_id \
+        WHERE coin.profitability = (SELECT MAX(c.profitability) FROM coin c JOIN service ON service.coin_id = c.id WHERE service.active = TRUE) \
+        AND service.active = TRUE\
         ",
     ).first()
     log.info(pool)
-    session = Session()
     return pool
 
 
 def get_best_coin_with_current_pool(pool_id):
+    session = Session()
     session.commit()
     # log.info('session.expire_all()')
     pool = session.execute(
@@ -147,11 +146,13 @@ def get_pool(worker_name, pool_id):
 
 
 def get_pool_by_id(pool_id):
+    session = Session()
+    session.commit()
     pool = session.execute(
         " \
-        SELECT Service.id AS id, Host.name AS host, Service.port AS port From Service \
-        JOIN Host ON Service.hostId = Host.id \
-        WHERE Service.id = :pool_id\
+        SELECT service.id AS id, host.name AS host, service.port AS port FROM service \
+        JOIN host ON service.host_id = host.id \
+        WHERE service.id = :pool_id\
         ",
         {
             'pool_id': pool_id
@@ -161,12 +162,29 @@ def get_pool_by_id(pool_id):
     return pool
 
 
-def get_pool_id_by_host_and_port(host, port):
+def old_get_pool_id_by_host_and_port(host, port):
     pool = session.execute(
         " \
         SELECT Service.id AS id, Host.name AS host, Service.port AS port From Service \
         JOIN Host ON Service.hostId = Host.id \
         WHERE Service.port = :port AND Host.name = :host\
+        ",
+        {
+            'host': host,
+            'port': port
+        }
+    ).first()
+    # log.info(pool)
+    return pool
+
+
+def get_pool_id_by_host_and_port(host, port):
+    session = Session()
+    pool = session.execute(
+        " \
+        SELECT service.id AS id, host.name AS host, service.port AS port FROM service \
+        JOIN host ON service.host_id = host.id \
+        WHERE service.port = :port AND host.name = :host\
         ",
         {
             'host': host,
@@ -261,7 +279,7 @@ def get_current_pool_and_worker_by_proxy_user(proxy_username, proxy_password):
     return pool
 
 
-def get_current_pool_and_worker_by_proxy_user_and_pool_id(proxy_username, proxy_password, pool_id):
+def old_get_current_pool_and_worker_by_proxy_user_and_pool_id(proxy_username, proxy_password, pool_id):
     session = Session()
     pool = session.execute(
         " \
@@ -285,6 +303,36 @@ def get_current_pool_and_worker_by_proxy_user_and_pool_id(proxy_username, proxy_
     log.info(pool)
     session.close()
     return pool
+
+
+def get_current_pool_and_worker_by_proxy_user_and_pool_id(proxy_username, proxy_password, pool_id):
+    try:
+        [user_name, worker_name] = proxy_username.split('.')
+        session = Session()
+        pool = session.execute(
+            " \
+            SELECT service.id AS id, host.name AS host, service.port AS port, :worker_name AS username, workers_group.password as password From service \
+            JOIN host ON service.host_id = host.id \
+            JOIN worker ON worker.user_id = user.id \
+            JOIN workers_group ON workers_group.id = worker.group_id \
+            JOIN CoinService ON CoinService.serviceId = Service.id \
+            JOIN Coin ON Coin.id = CoinService.coinId \
+            JOIN UserCoin ON UserCoin.userId = ServiceUser.userId AND UserCoin.coinId = Coin.id \
+            JOIN ProxyUser ON ProxyUser.userId = ServiceUser.userId \
+            WHERE Worker.name = :proxy_username AND Worker.password = :proxy_password AND UserCoin.mine = TRUE \
+            AND Service.id = :pool_id \
+            ",
+            {
+                'proxy_username': proxy_username,
+                'proxy_password': proxy_password,
+                'pool_id': pool_id
+            }
+        ).first()
+        log.info(pool)
+        session.close()
+        return pool
+    except IndexError:
+        return None
 
 
 def get_list_of_switch_users():
